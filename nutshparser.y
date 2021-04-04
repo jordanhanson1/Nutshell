@@ -9,3 +9,9 @@ void yyerror(char* e) {
 	printf("Error: %s\n", e);
 }
 %}
+
+
+%token LS
+%token DOT
+%token DDOT
+%token 

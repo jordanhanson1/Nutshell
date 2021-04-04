@@ -7,7 +7,7 @@
 %%
 [ \t\r\n]+	{  }
 "hello world"               printf("helloWorld");
-"ls"|"cd"                   return CMND;
+"ls"                        return LS;
 "."                         return DOT;
 ".."                        return DDOT; 
 "~"                         return TILDE; 
