@@ -16,12 +16,14 @@ int runCD(char* arg);
 int runSetAlias(char *name, char *word);
 int runNotBuilt1(char* cmnd);
 int runNotBuilt2(char* cmnd, char* arg);
+int unAlias(char* name);
+int printAl(void);
 %}
 
 %union {char *string;}
 
 %start cmd_line
-%token <string> BYE CD UNSETENV ANYSTRING
+%token <string> BYE CD UNSETENV ANYSTRING ALIASCOM
 %token <string> END PIPE PRINTENV UNALIAS INPUT AND
 %token <string> STRING SETENV ALIAS OUTPUT BACKSLASH
 
@@ -34,7 +36,9 @@ cmd_line    :
 myCommand :
 	BYE END 		                {exit(1); return 1; }
 	| CD STRING END        			{runCD($2); return 1;}
+	| ALIAS END						{printAl(); return 1;}
 	| ALIAS STRING STRING END		{runSetAlias($2, $3); return 1;}
+	| UNALIAS ALIASCOM END					{unAlias($2); return 1;}
 
 %%
 
@@ -123,4 +127,39 @@ int runSetAlias(char *name, char *word) {
 	aliasIndex++;
 
 	return 1;
+}
+
+
+
+
+int unAlias(char* word){
+
+	for (int i=0; i<aliasIndex; i++){
+		if (strcmp(aliasTable.name[i],word)==0){
+			strcpy(aliasTable.name[i], "");
+			strcpy(aliasTable.word[i], "");
+			if (aliasIndex>1){
+			for (int k=i+1; k<aliasIndex; k++){
+				strcpy(aliasTable.name[k-1], aliasTable.name[k]);
+				strcpy(aliasTable.word[k-1], aliasTable.word[k]);
+			}
+			}
+			aliasIndex--;
+			break;
+		}
+
+	}
+	return 1;
+
+
+}
+
+
+int printAl(void){
+	for (int i=0; i<aliasIndex; i++){
+		printf("%s : %s \n",aliasTable.name[i], aliasTable.word[i]);
+	}
+
+	return 1;
+
 }
