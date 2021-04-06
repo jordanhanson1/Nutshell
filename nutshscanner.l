@@ -37,9 +37,9 @@ ANYCHAR            [)(*&%$#@!`;,\.a-zA-Z0-9'/*_=~ -][)(*&%$#@!`;,\.a-zA-Z0-9'/*_
 bye                 { return BYE; }
 cd		            { return CD;}
 alias		        { return ALIAS; }
-unalias             {return UNALIAS}
-setenv              { return SETENV}
-unsetenv           { return UNSETENV}
+unalias             {return UNALIAS;}
+setenv              { return SETENV;}
+unsetenv           { return UNSETENV;}
 "\n"		        { return END; }
 [\"]                 { BEGIN(string_condition); }
 {CHAR}+              {if(ifAlias(yytext)) {
@@ -54,4 +54,4 @@ unsetenv           { return UNSETENV}
                         yylval.string = strdup(yytext);
                         return STRING;
                     };
-                     }
+                  }
