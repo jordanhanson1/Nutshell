@@ -9,26 +9,32 @@
 #include "global.h"
 #include <dirent.h>
 
+
 int yylex(void);
 int yyerror(char *s);
 int runCD(char* arg);
 int runSetAlias(char *name, char *word);
-int runLS(void);
+int runNotBuilt1(char* cmnd);
+int runNotBuilt2(char* cmnd, char* arg);
 %}
 
 %union {char *string;}
 
 %start cmd_line
-%token <string> BYE CD UNSETENV ANYSTRING LS
+%token <string> BYE CD UNSETENV ANYSTRING
 %token <string> END PIPE PRINTENV UNALIAS INPUT AND
 %token <string> STRING SETENV ALIAS OUTPUT BACKSLASH
 
 %%
 cmd_line    :
+	myCommand END					{return 1;}
+	| STRING END					{runNotBuilt1($1); return 1;}
+	| STRING STRING END				{runNotBuilt2($1,$2); return 1;}
+
+myCommand :
 	BYE END 		                {exit(1); return 1; }
 	| CD STRING END        			{runCD($2); return 1;}
 	| ALIAS STRING STRING END		{runSetAlias($2, $3); return 1;}
-	| LS END						{runLS(); return 1;}
 
 %%
 
@@ -65,26 +71,36 @@ int runCD(char* arg) {
 }
 
 
-int runLS(){
-struct dirent* file;
-DIR* direc= opendir(".");
-
-if (direc==NULL){
-	printf("Could not open the current directory.");
-	return 0;
+int runNotBuilt1(char* cmnd){
+	char* path="/bin/";
+	char* pathWithCMND;
+	pathWithCMND = malloc(strlen(path)+strlen(cmnd)); 
+	strcpy(pathWithCMND, path); 
+	strcat(pathWithCMND, cmnd); 
+	printf("%s\n",pathWithCMND);
+	if (fork()==0){
+		execl(pathWithCMND,pathWithCMND,(char*) NULL);
+	}
+	else{
+		waitpid(-1, NULL, 0);
+	}
+	return 1;
 }
-file = readdir(direc);
-while (file!=NULL){
-	printf("%s\n",file->d_name);
-	file = readdir(direc);
-}
 
-closedir(direc);
-char *buf;
-buf=(char *)malloc(100*sizeof(char));
-getcwd(buf,100);
-printf("\n %s \n",buf);
-
+int runNotBuilt2(char* cmnd, char* arg){
+	char* path="/bin/";
+	char* pathWithCMND;
+	pathWithCMND = malloc(strlen(path)+strlen(cmnd)); 
+	strcpy(pathWithCMND, path); 
+	strcat(pathWithCMND, cmnd); 
+	printf("%s\n",pathWithCMND);
+	if (fork()==0){
+		execl(pathWithCMND,pathWithCMND,arg,(char*) NULL);
+	}
+	else{
+		waitpid(-1, NULL, 0);
+	}
+	return 1;
 }
 
 int runSetAlias(char *name, char *word) {
