@@ -7,17 +7,19 @@
 #include <unistd.h>
 #include <string.h>
 #include "global.h"
+#include <dirent.h>
 
 int yylex(void);
 int yyerror(char *s);
 int runCD(char* arg);
 int runSetAlias(char *name, char *word);
+int runLS(void);
 %}
 
 %union {char *string;}
 
 %start cmd_line
-%token <string> BYE CD UNSETENV ANYSTRING
+%token <string> BYE CD UNSETENV ANYSTRING LS
 %token <string> END PIPE PRINTENV UNALIAS INPUT AND
 %token <string> STRING SETENV ALIAS OUTPUT BACKSLASH
 
@@ -26,6 +28,7 @@ cmd_line    :
 	BYE END 		                {exit(1); return 1; }
 	| CD STRING END        			{runCD($2); return 1;}
 	| ALIAS STRING STRING END		{runSetAlias($2, $3); return 1;}
+	| LS END						{runLS(); return 1;}
 
 %%
 
@@ -59,6 +62,29 @@ int runCD(char* arg) {
                        	return 1;
 		}
 	}
+}
+
+
+int runLS(){
+struct dirent* file;
+DIR* direc= opendir(".");
+
+if (direc==NULL){
+	printf("Could not open the current directory.");
+	return 0;
+}
+file = readdir(direc);
+while (file!=NULL){
+	printf("%s\n",file->d_name);
+	file = readdir(direc);
+}
+
+closedir(direc);
+char *buf;
+buf=(char *)malloc(100*sizeof(char));
+getcwd(buf,100);
+printf("\n %s \n",buf);
+
 }
 
 int runSetAlias(char *name, char *word) {

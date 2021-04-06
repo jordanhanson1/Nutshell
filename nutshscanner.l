@@ -40,6 +40,7 @@ alias		        { return ALIAS; }
 unalias             {return UNALIAS;}
 setenv              { return SETENV;}
 unsetenv           { return UNSETENV;}
+ls                  {return LS;}
 "\n"		        { return END; }
 [\"]                 { BEGIN(string_condition); }
 {CHAR}+              {if(ifAlias(yytext)) {
