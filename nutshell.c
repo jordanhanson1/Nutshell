@@ -4,6 +4,9 @@
 #include "global.h"
 #include <unistd.h>
 
+
+
+//char *getcwd(char *buf, size_t size);
 int yyparse();
 
 int main()

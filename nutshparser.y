@@ -10,6 +10,7 @@
 #include <dirent.h>
 #include <stdbool.h>
 
+
 int yylex(void);
 int yyerror(char *s);
 int runCD(char* arg);
@@ -19,24 +20,34 @@ int runEcho(char *s);
 int runPrintEnv();
 int runSetEnv(char *name, char *value);
 int runUnsetEnv(char *variable);
+int runNotBuilt1(char* cmnd);
+int runNotBuilt2(char* cmnd, char* arg);
+int unAlias(char* name);
+int printAl(void);
 %}
 
 %union {char *string;}
 
 %start cmd_line
-%token <string> BYE CD UNSETENV ANYSTRING LS
+%token <string> BYE CD UNSETENV ANYSTRING ALIASCOM
 %token <string> END PIPE PRINTENV UNALIAS INPUT AND
 %token <string> STRING SETENV ALIAS OUTPUT BACKSLASH
 
 %%
 cmd_line    :
-	built_in END 			{return 1;}
+	my_command END 			{return 1;}
 	
-built_in :
+myCommand :
 	BYE END 		                {exit(1); return 1; }
-	| CD STRING END        			{runCD($2); return 1;}
+	| built_in END              {return 1;}
+	| UNALIAS ALIASCOM END					{unAlias($2); return 1;}
+  | LS END						{runLS(); return 1;}
+  
+ built_in :
+  BYE END
+  | CD STRING END        			{runCD($2); return 1;}
+	| ALIAS END						{printAl(); return 1;}
 	| ALIAS STRING STRING END		{runSetAlias($2, $3); return 1;}
-	| LS END						{runLS(); return 1;}
 	| PRINTENV						{runPrintEnv();}
 	| SETENV STRING STRING END		{runSetEnv($2, $3); return 1;}
 	| UNSETENV STRING END   			{runUnsetEnv($2); return 1;}
@@ -76,6 +87,7 @@ int runCD(char* arg) {
 }
 
 
+
 int runLS(){
 	struct dirent* file;
 	DIR* direc= opendir(".");
@@ -92,6 +104,36 @@ int runLS(){
 
 	closedir(direc);
 
+int runNotBuilt1(char* cmnd){
+	char* path="/bin/";
+	char* pathWithCMND;
+	pathWithCMND = malloc(strlen(path)+strlen(cmnd)); 
+	strcpy(pathWithCMND, path); 
+	strcat(pathWithCMND, cmnd); 
+	printf("%s\n",pathWithCMND);
+	if (fork()==0){
+		execl(pathWithCMND,pathWithCMND,(char*) NULL);
+	}
+	else{
+		waitpid(-1, NULL, 0);
+	}
+	return 1;
+}
+
+int runNotBuilt2(char* cmnd, char* arg){
+	char* path="/bin/";
+	char* pathWithCMND;
+	pathWithCMND = malloc(strlen(path)+strlen(cmnd)); 
+	strcpy(pathWithCMND, path); 
+	strcat(pathWithCMND, cmnd); 
+	printf("%s\n",pathWithCMND);
+	if (fork()==0){
+		execl(pathWithCMND,pathWithCMND,arg,(char*) NULL);
+	}
+	else{
+		waitpid(-1, NULL, 0);
+	}
+	return 1;
 }
 
 int runSetAlias(char *name, char *word) {
@@ -178,3 +220,36 @@ int runUnsetEnv(char *variable) {
 	}
 
 }
+
+int unAlias(char* word){
+
+	for (int i=0; i<aliasIndex; i++){
+		if (strcmp(aliasTable.name[i],word)==0){
+			strcpy(aliasTable.name[i], "");
+			strcpy(aliasTable.word[i], "");
+			if (aliasIndex>1){
+			for (int k=i+1; k<aliasIndex; k++){
+				strcpy(aliasTable.name[k-1], aliasTable.name[k]);
+				strcpy(aliasTable.word[k-1], aliasTable.word[k]);
+			}
+			}
+			aliasIndex--;
+			break;
+		}
+
+	}
+	return 1;
+
+
+}
+
+
+int printAl(void){
+	for (int i=0; i<aliasIndex; i++){
+		printf("%s : %s \n",aliasTable.name[i], aliasTable.word[i]);
+	}
+
+	return 1;
+
+}
+
