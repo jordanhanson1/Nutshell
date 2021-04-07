@@ -2,15 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 
-<<<<<<< Updated upstream
-int yylex(); // Defined in lex.yy.c
-
-int yyparse(); // Need this definition so that yyerror can call it
-
-void yyerror(char* e) {
-	printf("Error: %s\n", e);
-}
-=======
 int parsePath(char* pat);
 int yylex(void);
 int yyerror(char *s);
@@ -22,15 +13,12 @@ int unAlias(char* name);
 int printAl(void);
 int aliasCmnd(char* name);
 int cmndLong(char* word);
->>>>>>> Stashed changes
 %}
 
 
 %token <string> BYE CD UNSETENV ANYSTRING
 %token <string> END PIPE PRINTENV UNALIAS INPUT AND
 %token <string> STRING SETENV ALIAS OUTPUT BACKSLASH
-<<<<<<< Updated upstream
-=======
 
 %%
 cmd_line    :
@@ -217,4 +205,3 @@ int parsePath(char* pat){
 	
 
 }
->>>>>>> Stashed changes
