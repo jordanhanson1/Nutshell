@@ -22,5 +22,3 @@ struct aTable aliasTable;
 int aliasIndex, varIndex;
 
 char *subAliases(char *name);
-
-char *path;
