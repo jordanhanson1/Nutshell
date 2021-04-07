@@ -8,8 +8,11 @@
 #include <string.h>
 #include "global.h"
 #include <dirent.h>
-#include <stdbool.h>
 
+
+int parsePath(char* pat);
+
+#include <stdbool.h>
 
 int yylex(void);
 int yyerror(char *s);
@@ -24,6 +27,10 @@ int runNotBuilt1(char* cmnd);
 int runNotBuilt2(char* cmnd, char* arg);
 int unAlias(char* name);
 int printAl(void);
+
+int aliasCmnd(char* name);
+int cmndLong(char* word);
+
 %}
 
 %union {char *string;}
@@ -36,12 +43,13 @@ int printAl(void);
 %%
 cmd_line    :
 	my_command END 			{return 1;}
+  | STRING END					{runNotBuilt1($1); return 1;}
+	| STRING STRING END				{runNotBuilt2($1,$2); return 1;}
+
 	
 myCommand :
 	BYE END 		                {exit(1); return 1; }
 	| built_in END              {return 1;}
-	| UNALIAS ALIASCOM END					{unAlias($2); return 1;}
-  | LS END						{runLS(); return 1;}
   
  built_in :
   BYE END
@@ -51,6 +59,8 @@ myCommand :
 	| PRINTENV						{runPrintEnv();}
 	| SETENV STRING STRING END		{runSetEnv($2, $3); return 1;}
 	| UNSETENV STRING END   			{runUnsetEnv($2); return 1;}
+  | UNALIAS ALIASCOM END			{unAlias($2); return 1;}
+	| ALIASCOM END					{aliasCmnd($1); return 1;}
 
 %%
 
@@ -86,23 +96,6 @@ int runCD(char* arg) {
 	}
 }
 
-
-
-int runLS(){
-	struct dirent* file;
-	DIR* direc= opendir(".");
-
-	if (direc==NULL){
-		printf("Could not open the current directory.");
-		return 0;
-	}
-	file = readdir(direc);
-	while (file!=NULL){
-		printf("%s\n",file->d_name);
-		file = readdir(direc);
-	}
-
-	closedir(direc);
 
 int runNotBuilt1(char* cmnd){
 	char* path="/bin/";
@@ -157,6 +150,7 @@ int runSetAlias(char *name, char *word) {
 
 	return 1;
 }
+
 
 int runPrintEnv() {
 	for(int i = 0; i < varIndex; i++)
@@ -250,6 +244,54 @@ int printAl(void){
 	}
 
 	return 1;
+
+}
+
+int aliasCmnd(char* name){
+	for (int i=0; i<aliasIndex; i++){
+		if (strcmp(name,aliasTable.name[i])==0){
+			return cmndLong(aliasTable.word[i]);
+		}
+
+	}
+	printf("could not find name %s \n", name);
+	return 1;
+}
+
+int cmndLong(char* word){
+	char * cmnd = malloc(strlen(word) + 1); 
+	strcpy(cmnd, word);
+
+	int count=1;
+	for (int i=0; i<strlen(cmnd); i++){
+		if (cmnd[i]==' '){
+			count++;
+		}
+	}
+	int size=count+1;
+	char* arrChar[size];
+	count=0;
+	char* ptr= strtok(cmnd, " ");
+	while (ptr!=NULL){
+		arrChar[count]=ptr;
+		count++;
+		ptr= strtok(NULL, " ");
+	}
+	arrChar[count]=NULL;
+
+	if (fork()==0){
+		execv("/bin/ls",arrChar);
+	}
+	else{
+		waitpid(-1, NULL, 0);
+	}
+	free(cmnd);
+	return 1;
+}
+
+
+int parsePath(char* pat){
+	
 
 }
 
