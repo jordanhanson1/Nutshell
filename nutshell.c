@@ -12,7 +12,6 @@ int main()
     aliasIndex = 0;
     varIndex = 0;
 
-
     getcwd(cwd, sizeof(cwd));
 
     strcpy(varTable.var[varIndex], "PWD");

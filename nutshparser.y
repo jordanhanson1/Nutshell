@@ -1,6 +1,13 @@
 %{
+// This is ONLY a demo micro-shell whose purpose is to illustrate the need for and how to handle nested alias substitutions and how to use Flex start conditions.
+// This is to help students learn these specific capabilities, the code is by far not a complete nutshell by any means.
+// Only "alias name word", "cd word", and "bye" run.
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
+#include "global.h"
+#include <dirent.h>
 
 int parsePath(char* pat);
 int yylex(void);
@@ -15,8 +22,10 @@ int aliasCmnd(char* name);
 int cmndLong(char* word);
 %}
 
+%union {char *string;}
 
-%token <string> BYE CD UNSETENV ANYSTRING
+%start cmd_line
+%token <string> BYE CD UNSETENV ANYSTRING ALIASCOM
 %token <string> END PIPE PRINTENV UNALIAS INPUT AND
 %token <string> STRING SETENV ALIAS OUTPUT BACKSLASH
 
