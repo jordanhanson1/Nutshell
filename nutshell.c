@@ -8,6 +8,7 @@ int yyparse();
 
 int main()
 {
+    commandIndex = 0;
     aliasIndex = 0;
     varIndex = 0;
 
@@ -29,6 +30,7 @@ int main()
     system("clear");
     while (1)
     {
+        
         printf("[%s]>> ", varTable.word[2]);
         yyparse();
     }

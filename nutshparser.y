@@ -6,12 +6,12 @@
 #include <string.h>
 #include "global.h"
 #include <dirent.h>
+#include <signal.h>
 
 
-int parsePath(char* pat);
 
 #include <stdbool.h>
-
+char** parsePath(char* pat);
 int yylex(void);
 int yyerror(char *s);
 int runCD(char* arg);
@@ -25,40 +25,48 @@ int runNotBuilt1(char* cmnd);
 int runNotBuilt2(char* cmnd, char* arg);
 int unAlias(char* name);
 int printAl(void);
+int cmndLong2(void);
 
 int aliasCmnd(char* name);
 int cmndLong(char* word);
 
+int addToCommand(char* cm);
+
 %}
 
-%union {char *string;}
+%union {char* string;}
 
+%type<string> nonBuilt
 %start cmd_line
-%token <string> BYE CD UNSETENV ANYSTRING ALIASCOM
-%token <string> END PIPE PRINTENV UNALIAS INPUT AND
+%token <string> BYE CD UNSETENV ANYSTRING ALIASCOM LEFTCURLY
+%token <string> END PIPE PRINTENV UNALIAS INPUT AND RIGHTCURLY
 %token <string> STRING SETENV ALIAS OUTPUT BACKSLASH
 
 %%
 cmd_line    :
-	my_command END 			{return 1;}
-  | STRING END					{runNotBuilt1($1); return 1;}
-	| STRING STRING END				{runNotBuilt2($1,$2); return 1;}
+	myCommand END 						{return 1;}
+	| nonBuilt END							{cmndLong2(); return 1;}
 
 	
 myCommand :
 	BYE END 		                {exit(1); return 1; }
-	| built_in END              {return 1;}
+	| built_in END        	        {return 1;}
   
  built_in :
-  BYE END
-  | CD STRING END        			{runCD($2); return 1;}
+  	| CD STRING END        			{runCD($2); return 1;}
 	| ALIAS END						{printAl(); return 1;}
 	| ALIAS STRING STRING END		{runSetAlias($2, $3); return 1;}
 	| PRINTENV						{runPrintEnv();}
 	| SETENV STRING STRING END		{runSetEnv($2, $3); return 1;}
 	| UNSETENV STRING END   			{runUnsetEnv($2); return 1;}
-  | UNALIAS ALIASCOM END			{unAlias($2); return 1;}
+  	| UNALIAS ALIASCOM END			{unAlias($2); return 1;}
 	| ALIASCOM END					{aliasCmnd($1); return 1;}
+
+ nonBuilt : 
+ 	STRING											{addToCommand($1);}
+	| nonBuilt STRING								{addToCommand($2);}
+	| STRING END									{addToCommand($1); cmndLong2();}
+	
 
 %%
 
@@ -152,7 +160,7 @@ int runSetAlias(char *name, char *word) {
 
 int runPrintEnv() {
 	for(int i = 0; i < varIndex; i++)
-		printf("%s=%s\n", varTable.var[i], varTable.word[i]);
+		printf("%s = %s\n", varTable.var[i], varTable.word[i]);
 	return 1;
 }
 
@@ -287,9 +295,78 @@ int cmndLong(char* word){
 	return 1;
 }
 
+int cmndLong2(void){
+	printf("here");
+	
+	char* arrChar[commandIndex+1];
 
-int parsePath(char* pat){
+	for (int i=0; i<commandIndex; i++){
+		arrChar[i]=commandTable[i];
+	}
+	arrChar[commandIndex]=NULL;
+	char* pa=(char*) malloc(sizeof("/bin/")+sizeof(arrChar[0])+1);
+	strcpy(pa,"/bin/");
+	strcat(pa,arrChar[0]);
+
+
+
+	if (fork()==0){
+		if (execv(pa,arrChar)==-1){
+			printf("no such file");
+			kill(getpid(), SIGKILL);
+		}
+	}
+	else{
+		waitpid(0);
+	}
+
+
+	for (int i=0; i<commandIndex; i++){
+		commandTable[i]="";
+	}
+	commandIndex=0;
 	
 
+	return 1;
+}
+
+int addToLong(char* str){
+	char* ne=malloc(sizeof(str)+sizeof(commandlong));
+	strcat(ne,commandlong);
+	strcat(ne,str);
+	commandlong=ne;
+	return 1;
+}
+
+char** parsePath(char* pat){
+	char * cmnd = malloc(strlen(pat) + 1); 
+	strcpy(cmnd, pat);
+
+	int count=1;
+	for (int i=0; i<strlen(cmnd); i++){
+		if (cmnd[i]==':'){
+			count++;
+		}
+	}
+	int size=count+1;
+	char* arrChar[size];
+	count=0;
+	char* ptr= strtok(cmnd, " ");
+	while (ptr!=NULL){
+		arrChar[count]=ptr;
+		count++;
+		ptr= strtok(NULL, " ");
+	}
+	for (int i=0; i<strlen(arrChar);i++){
+		printf("paths: %s",arrChar[i]);
+	}
+
+	return arrChar;
+}
+
+int addToCommand(char* cm){
+	commandTable[commandIndex]=cm;
+	commandIndex++;
+	return 1;
 }
 
