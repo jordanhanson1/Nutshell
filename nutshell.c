@@ -30,7 +30,6 @@ int main()
     system("clear");
     while (1)
     {
-        
         printf("[%s]>> ", varTable.word[2]);
         yyparse();
     }

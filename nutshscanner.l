@@ -50,7 +50,6 @@ printenv            {return PRINTENV;}
                         yylval.string = strdup(yytext);
                         return ALIASCOM;
                     } else {
-                        printf("yytext: %s\n", yytext);
                         yylval.string = strdup(yytext);
                         return STRING;
                     };

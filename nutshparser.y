@@ -65,7 +65,6 @@ myCommand :
  nonBuilt : 
  	STRING											{addToCommand($1);}
 	| nonBuilt STRING								{addToCommand($2);}
-	| STRING END									{addToCommand($1); cmndLong2();}
 	
 
 %%
@@ -296,7 +295,6 @@ int cmndLong(char* word){
 }
 
 int cmndLong2(void){
-	printf("here");
 	
 	char* arrChar[commandIndex+1];
 
@@ -308,16 +306,13 @@ int cmndLong2(void){
 	strcpy(pa,"/bin/");
 	strcat(pa,arrChar[0]);
 
-
-
-	if (fork()==0){
-		if (execv(pa,arrChar)==-1){
-			printf("no such file");
-			kill(getpid(), SIGKILL);
+	int status;
+	int pid=fork();
+	if (pid==0){
+		execv(pa,arrChar);
 		}
-	}
 	else{
-		waitpid(0);
+		waitpid(-1, NULL, 0);
 	}
 
 
