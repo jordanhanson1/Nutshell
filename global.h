@@ -19,7 +19,7 @@ struct evTable varTable;
 
 struct aTable aliasTable;
 
-char* commandTable[128];
+char *commandTable[128];
 int commandIndex;
 
 int aliasIndex, varIndex;
@@ -27,3 +27,9 @@ int aliasIndex, varIndex;
 char *subAliases(char *name);
 
 char *commandlong;
+int numPipes;
+int numPaths;
+char *pathsVar[100];
+
+int numCommands;
+int comI[100];

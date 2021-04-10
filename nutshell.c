@@ -8,6 +8,8 @@ int yyparse();
 
 int main()
 {
+    numPipes = 0;
+    numPaths = 0;
     commandIndex = 0;
     aliasIndex = 0;
     varIndex = 0;

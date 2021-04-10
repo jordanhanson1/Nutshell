@@ -11,7 +11,7 @@
 
 
 #include <stdbool.h>
-char** parsePath(char* pat);
+int parsePath(void);
 int yylex(void);
 int yyerror(char *s);
 int runCD(char* arg);
@@ -26,9 +26,8 @@ int runNotBuilt2(char* cmnd, char* arg);
 int unAlias(char* name);
 int printAl(void);
 int cmndLong2(void);
-
+bool hasFile(char* file);
 int aliasCmnd(char* name);
-int cmndLong(char* word);
 
 int addToCommand(char* cm);
 
@@ -245,7 +244,7 @@ int unAlias(char* word){
 
 int printAl(void){
 	for (int i=0; i<aliasIndex; i++){
-		printf("%s : %s \n",aliasTable.name[i], aliasTable.word[i]);
+		printf("%s=%s \n",aliasTable.name[i], aliasTable.word[i]);
 	}
 
 	return 1;
@@ -255,7 +254,7 @@ int printAl(void){
 int aliasCmnd(char* name){
 	for (int i=0; i<aliasIndex; i++){
 		if (strcmp(name,aliasTable.name[i])==0){
-			return cmndLong(aliasTable.word[i]);
+			return 1;
 		}
 
 	}
@@ -263,48 +262,36 @@ int aliasCmnd(char* name){
 	return 1;
 }
 
-int cmndLong(char* word){
-	char * cmnd = malloc(strlen(word) + 1); 
-	strcpy(cmnd, word);
-
-	int count=1;
-	for (int i=0; i<strlen(cmnd); i++){
-		if (cmnd[i]==' '){
-			count++;
-		}
-	}
-	int size=count+1;
-	char* arrChar[size];
-	count=0;
-	char* ptr= strtok(cmnd, " ");
-	while (ptr!=NULL){
-		arrChar[count]=ptr;
-		count++;
-		ptr= strtok(NULL, " ");
-	}
-	arrChar[count]=NULL;
-
-	if (fork()==0){
-		execv("/bin/ls",arrChar);
-	}
-	else{
-		waitpid(-1, NULL, 0);
-	}
-	free(cmnd);
-	return 1;
-}
 
 int cmndLong2(void){
-	
+	char* pa;
 	char* arrChar[commandIndex+1];
 
 	for (int i=0; i<commandIndex; i++){
 		arrChar[i]=commandTable[i];
+		if (strcmp(commandTable[i],"|")==0){
+			comI[numCommands]=i;
+			numPipes++;
+			numCommands++;
+		}
 	}
-	arrChar[commandIndex]=NULL;
-	char* pa=(char*) malloc(sizeof("/bin/")+sizeof(arrChar[0])+1);
-	strcpy(pa,"/bin/");
+	//arrChar[commandIndex]=NULL;
+	parsePath();
+	if (numPipes==0){
+	for (int i=0; i<numPaths; i++){
+	pa=(char*) malloc(sizeof(pathsVar[i])+sizeof("/")+sizeof(arrChar[0])+1);
+	strcpy(pa,pathsVar[i]);
+	strcat(pa,"/");
 	strcat(pa,arrChar[0]);
+	if (hasFile(pa)==true){
+		break;
+	}
+	}
+
+	if (hasFile(pa)==true){
+		printf("no file found in paths");
+		return 1;
+	}
 
 	int status;
 	int pid=fork();
@@ -314,49 +301,87 @@ int cmndLong2(void){
 	else{
 		waitpid(-1, NULL, 0);
 	}
-
-
 	for (int i=0; i<commandIndex; i++){
 		commandTable[i]="";
 	}
 	commandIndex=0;
-	
+	}
+	else{
+	for (int pip=0; pip<numPipes; pip++){	
+	for (int i=0; i<numPaths; i++){
+	pa=(char*) malloc(sizeof(pathsVar[i])+sizeof("/")+sizeof(arrChar[0])+1);
+	strcpy(pa,pathsVar[i]);
+	strcat(pa,"/");
+	strcat(pa,arrChar[0]);
+	if (hasFile(pa)==true){
+		break;
+	}
+	}
+
+	if (hasFile(pa)==true){
+		printf("no file found in paths");
+		return 1;
+	}
+
+	int status;
+	int pid=fork();
+	if (pid==0){
+		execv(pa,arrChar);
+		}
+	else{
+		waitpid(-1, NULL, 0);
+	}
+	for (int i=0; i<commandIndex; i++){
+		commandTable[i]="";
+	}
+	commandIndex=0;
+	}
+	}
 
 	return 1;
 }
 
-int addToLong(char* str){
-	char* ne=malloc(sizeof(str)+sizeof(commandlong));
-	strcat(ne,commandlong);
-	strcat(ne,str);
-	commandlong=ne;
-	return 1;
-}
 
-char** parsePath(char* pat){
-	char * cmnd = malloc(strlen(pat) + 1); 
-	strcpy(cmnd, pat);
+
+int parsePath(void){
+	char * cmnd = malloc(strlen(varTable.word[3]) + 1); 
+	strcpy(cmnd, varTable.word[3]);
 
 	int count=1;
 	for (int i=0; i<strlen(cmnd); i++){
 		if (cmnd[i]==':'){
+			numPaths++;
 			count++;
 		}
 	}
+	numPaths=count;
 	int size=count+1;
-	char* arrChar[size];
 	count=0;
-	char* ptr= strtok(cmnd, " ");
+	char* ptr= strtok(cmnd, ":");
 	while (ptr!=NULL){
-		arrChar[count]=ptr;
+		pathsVar[count]=ptr;
 		count++;
-		ptr= strtok(NULL, " ");
+		ptr= strtok(NULL, ":");
 	}
-	for (int i=0; i<strlen(arrChar);i++){
-		printf("paths: %s",arrChar[i]);
+	for (int i=0; i<numPaths;i++){
+		pathsVar[i];
+	}	
+	return 1;
+}
+
+
+bool hasFile(char* file){
+	if (file[0]!='.'){
+	char* temp = (char*) malloc(sizeof(file)+sizeof(".")+1);
+	strcpy(temp,".");
+	strcat(temp, file);
+	return (access( temp, F_OK ) == 0 );
 	}
 
-	return arrChar;
+	else{
+		return (access( file, F_OK ) == 0 );
+	}
+
 }
 
 int addToCommand(char* cm){
