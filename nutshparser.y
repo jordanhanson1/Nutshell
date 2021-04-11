@@ -32,7 +32,7 @@ int aliasCmnd(char* name);
 int addToCommand(char* cm);
 int pipefunction(void);
 
-char* aliasExpansion(char* word);
+char* Alexpansion(char* word);
 
 %}
 
@@ -419,7 +419,11 @@ bool hasFile(char* file){
 
 }
 
-int addToCommand(char* cm){
+int addToCommand(char* cm)
+{
+	char * temp=Alexpansion(cm);
+	cm=temp;
+
 	if (strcmp(cm,"|")!=0){
 	commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=cm;
 	commandStructTable.size[numPipes]++;
@@ -444,12 +448,12 @@ char* Alexpansion(char* cmnd){
 			}
 		}
 		char* check=malloc((strlen(cmnd)-start)*sizeof(char) + 1);
-		for (int i=0; i<(strlen(cmnd)-start); j++){
+		for (int i=0; i<(strlen(cmnd)-start); i++){
 			check[i]=cmnd[start+i];
 		}
 			for (int i = 0; i < aliasIndex; i++) {
 				if(strcmp(aliasTable.name[i], check) == 0){
-					return Alexpansion(check);
+					return Alexpansion(aliasTable.word[i]);
 				}
 			}
 			return check;

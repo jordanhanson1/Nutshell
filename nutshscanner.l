@@ -43,11 +43,7 @@ unsetenv           { return UNSETENV;}
 printenv            {return PRINTENV;}
 "\n"		        { return END; }
 [\"]                 { BEGIN(string_condition); }
-{CHAR}+              {if(ifAlias(yytext)) {
-                        yylval.string = strdup(yytext);
-                        return ALIASCOM;
-                    } else {
+{CHAR}+              {
                         yylval.string = strdup(yytext);
                         return STRING;
-                    };
                   }
