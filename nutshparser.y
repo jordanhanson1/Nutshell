@@ -33,6 +33,7 @@ int addToCommand(char* cm);
 int pipefunction(void);
 
 char* Alexpansion(char* word);
+char* envExpansion(char* cmnd);
 
 %}
 
@@ -421,7 +422,11 @@ bool hasFile(char* file){
 
 int addToCommand(char* cm)
 {
+	char* commandTest="hello/${HOME}/ls";
+	envExpansion(commandTest);
 	char * temp=Alexpansion(cm);
+	cm=temp;
+	temp=Alexpansion(cm);
 	cm=temp;
 
 	if (strcmp(cm,"|")!=0){
@@ -460,3 +465,45 @@ char* Alexpansion(char* cmnd){
 
 		}
 
+
+
+
+char* envExpansion(char* cmnd){
+	bool startString=false;
+	char* ret=cmnd;
+	int iDelete;
+	for (int i=0; i<strlen(cmnd); i++){
+		if (cmnd[i]=='$'){
+			startString=true;
+			iDelete=i;
+		}
+		if (startString==true){
+			char* temp= malloc(sizeof(cmnd)+1);
+			strcpy(temp,cmnd);
+			char* begging = strtok(temp, "{");
+			char* middle=strtok(NULL, "$");
+			char* env=strtok(middle, "}");
+			strcpy(&begging[iDelete], &begging[iDelete + 1]);
+		
+			char* end=strtok(NULL,"}");
+			startString=false;
+			for (int k=0; k<varIndex; k++){
+				if (strcmp(env,varTable.var[k])==0){
+					env=malloc(sizeof(varTable.word[k])+1);
+					env=varTable.word[k];
+				}
+
+			}
+
+			ret=malloc(sizeof(begging)+sizeof(end)+sizeof(env)+1);
+			strcpy(ret,begging);
+			strcat(ret,env);
+			strcat(ret,end);
+			printf("%s \n",ret);
+
+		}
+
+	}
+	return ret;
+
+}
