@@ -9,6 +9,7 @@ int yyparse();
 int main()
 {
     numPipes = 0;
+    commandStructTable.size[numPipes] = 0;
     numPaths = 0;
     commandIndex = 0;
     aliasIndex = 0;
@@ -26,7 +27,7 @@ int main()
     strcpy(varTable.word[varIndex], "nutshell");
     varIndex++;
     strcpy(varTable.var[varIndex], "PATH");
-    strcpy(varTable.word[varIndex], ".:/bin");
+    strcpy(varTable.word[varIndex], "/bin:.");
     varIndex++;
 
     system("clear");

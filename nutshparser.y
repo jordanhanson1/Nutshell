@@ -7,7 +7,7 @@
 #include "global.h"
 #include <dirent.h>
 #include <signal.h>
-
+#include <ctype.h>
 
 
 #include <stdbool.h>
@@ -30,6 +30,9 @@ bool hasFile(char* file);
 int aliasCmnd(char* name);
 
 int addToCommand(char* cm);
+int pipefunction(void);
+
+char* aliasExpansion(char* word);
 
 %}
 
@@ -57,7 +60,7 @@ myCommand :
 	| ALIAS STRING STRING END		{runSetAlias($2, $3); return 1;}
 	| PRINTENV						{runPrintEnv();}
 	| SETENV STRING STRING END		{runSetEnv($2, $3); return 1;}
-	| UNSETENV STRING END   			{runUnsetEnv($2); return 1;}
+	| UNSETENV STRING END   		{runUnsetEnv($2); return 1;}
   	| UNALIAS ALIASCOM END			{unAlias($2); return 1;}
 	| ALIASCOM END					{aliasCmnd($1); return 1;}
 
@@ -265,82 +268,114 @@ int aliasCmnd(char* name){
 
 int cmndLong2(void){
 	char* pa;
-	char* arrChar[commandIndex+1];
-
-	for (int i=0; i<commandIndex; i++){
-		arrChar[i]=commandTable[i];
-		if (strcmp(commandTable[i],"|")==0){
-			comI[numCommands]=i;
-			numPipes++;
-			numCommands++;
-		}
-	}
-	//arrChar[commandIndex]=NULL;
 	parsePath();
+
+
 	if (numPipes==0){
 	for (int i=0; i<numPaths; i++){
-	pa=(char*) malloc(sizeof(pathsVar[i])+sizeof("/")+sizeof(arrChar[0])+1);
+	pa=(char*) malloc(sizeof(pathsVar[i])+sizeof("/")+sizeof(commandStructTable.command[0][0])+1);
 	strcpy(pa,pathsVar[i]);
 	strcat(pa,"/");
-	strcat(pa,arrChar[0]);
-	if (hasFile(pa)==true){
+	//printf("%s \n",commandStructTable.command[0][0]);
+	strcat(pa,commandStructTable.command[0][0]);
+	if (hasFile(pa)==false){
 		break;
 	}
 	}
 
 	if (hasFile(pa)==true){
 		printf("no file found in paths");
-		return 1;
+		//return 1;
 	}
 
 	int status;
 	int pid=fork();
 	if (pid==0){
-		execv(pa,arrChar);
+		execv(pa,commandStructTable.command[0]);
 		}
 	else{
 		waitpid(-1, NULL, 0);
 	}
-	for (int i=0; i<commandIndex; i++){
-		commandTable[i]="";
+	for (int i=0; i<commandStructTable.size[0]; i++){
+		commandStructTable.command[0][i]="";
 	}
-	commandIndex=0;
-	}
-	else{
-	for (int pip=0; pip<numPipes; pip++){	
-	for (int i=0; i<numPaths; i++){
-	pa=(char*) malloc(sizeof(pathsVar[i])+sizeof("/")+sizeof(arrChar[0])+1);
-	strcpy(pa,pathsVar[i]);
-	strcat(pa,"/");
-	strcat(pa,arrChar[0]);
-	if (hasFile(pa)==true){
-		break;
-	}
+	commandStructTable.size[0]=0;
 	}
 
-	if (hasFile(pa)==true){
-		printf("no file found in paths");
-		return 1;
-	}
 
-	int status;
-	int pid=fork();
-	if (pid==0){
-		execv(pa,arrChar);
-		}
 	else{
-		waitpid(-1, NULL, 0);
-	}
-	for (int i=0; i<commandIndex; i++){
-		commandTable[i]="";
-	}
-	commandIndex=0;
-	}
+	pipefunction();
 	}
 
 	return 1;
 }
 
+int pipefunction(void){
+	int count=0;
+	for (int i=0; i<numPipes;i++){
+		count++;
+		for (int j=0; j<commandStructTable.size[i]; j++){
+			printf("cmnd : %s \n",commandStructTable.command[i][j]);
+		}
+		int pipe1[2];
+		if (pipe(pipe1)<0)
+			printf("pipe1 is not working");
+
+
+		if (fork()==0){
+			printf("child");
+			dup2(pipe1[0],1);
+			char* pa;
+			for (int k=0; k<numPaths; k++){
+			pa=(char*) malloc(sizeof(pathsVar[k])+sizeof("/")+sizeof(commandStructTable.command[i][0])+1);
+			strcpy(pa,pathsVar[k]);
+			strcat(pa,"/");
+			//find path
+			strcat(pa,commandStructTable.command[i][0]);
+			if (hasFile(pa)==false){
+				break;
+			}
+			}
+
+			if (hasFile(pa)==true){
+			printf("no file found in paths");
+			//return 1;
+			}
+			execv(pa,commandStructTable.command[i]);
+
+
+
+		}
+		
+		dup2(pipe1[0],0);
+		close(pipe1[1]);
+
+
+	}
+	char* pa;
+
+	for (int k=0; k<numPaths; k++){
+			pa=(char*) malloc(sizeof(pathsVar[k])+sizeof("/")+sizeof(commandStructTable.command[count][0])+1);
+			strcpy(pa,pathsVar[k]);
+			strcat(pa,"/");
+			//find path
+			strcat(pa,commandStructTable.command[count][0]);
+			if (hasFile(pa)==false){
+				break;
+			}
+	}
+
+	if (hasFile(pa)==true){
+				printf("no file found in paths");
+			//return 1;
+			}
+	execv(pa,commandStructTable.command[count]);
+
+
+
+	return 0;
+
+}
 
 
 int parsePath(void){
@@ -385,8 +420,39 @@ bool hasFile(char* file){
 }
 
 int addToCommand(char* cm){
-	commandTable[commandIndex]=cm;
+	if (strcmp(cm,"|")!=0){
+	commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=cm;
+	commandStructTable.size[numPipes]++;
+	}
+	else{
+		numPipes++;
+		commandStructTable.size[numPipes]=0;
+		commandIndex=0;
+	}
 	commandIndex++;
 	return 1;
 }
+
+
+char* Alexpansion(char* cmnd){
+	
+		int start=0;
+		for (int j=0; j<strlen(cmnd); j++){
+			if (isalpha(cmnd[j]) || isdigit(cmnd[j])){
+				start=j;
+				break;
+			}
+		}
+		char* check=malloc((strlen(cmnd)-start)*sizeof(char) + 1);
+		for (int i=0; i<(strlen(cmnd)-start); j++){
+			check[i]=cmnd[start+i];
+		}
+			for (int i = 0; i < aliasIndex; i++) {
+				if(strcmp(aliasTable.name[i], check) == 0){
+					return Alexpansion(check);
+				}
+			}
+			return check;
+
+		}
 

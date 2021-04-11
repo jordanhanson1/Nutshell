@@ -13,11 +13,19 @@ struct aTable
    char word[128][100];
 };
 
+struct cTable
+{
+   char* command[128][100];
+   int size[128];
+};
+
 char cwd[PATH_MAX];
 
 struct evTable varTable;
 
 struct aTable aliasTable;
+
+struct cTable commandStructTable;
 
 char *commandTable[128];
 int commandIndex;
