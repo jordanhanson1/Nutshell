@@ -284,10 +284,6 @@ int cmndLong2(void){
 	}
 	}
 
-	if (hasFile(pa)==true){
-		printf("no file found in paths");
-		//return 1;
-	}
 
 	int status;
 	int pid=fork();
@@ -313,19 +309,29 @@ int cmndLong2(void){
 
 int pipefunction(void){
 	int count=0;
+	int pipeOutside[numPipes][2];
 	for (int i=0; i<numPipes;i++){
+	if (pipe(pipeOutside[i])<0){
+		printf("error in creating pipes");
+		return 1;
+	}}
+
+	for (int i=0; i<numPipes+1;i++){
 		count++;
 		for (int j=0; j<commandStructTable.size[i]; j++){
 			printf("cmnd : %s \n",commandStructTable.command[i][j]);
 		}
-		int pipe1[2];
-		if (pipe(pipe1)<0)
-			printf("pipe1 is not working");
-
 
 		if (fork()==0){
-			printf("child");
-			dup2(pipe1[0],1);
+			printf("child %i \n",i);
+			if (i != numPipes){
+				dup2(pipeOutside[i][1],1);
+			}
+			if (i !=0){
+				dup2(pipeOutside[i-1][0],0);
+				close(pipeOutside[i-1][1]);
+
+			}
 			char* pa;
 			for (int k=0; k<numPaths; k++){
 			pa=(char*) malloc(sizeof(pathsVar[k])+sizeof("/")+sizeof(commandStructTable.command[i][0])+1);
@@ -337,41 +343,15 @@ int pipefunction(void){
 				break;
 			}
 			}
-
-			if (hasFile(pa)==true){
-			printf("no file found in paths");
-			//return 1;
-			}
 			execv(pa,commandStructTable.command[i]);
-
-
-
-		}
-		
-		dup2(pipe1[0],0);
-		close(pipe1[1]);
+			}
+			else{
+				
+				waitpid(-1, NULL, 0);
+			}
 
 
 	}
-	char* pa;
-
-	for (int k=0; k<numPaths; k++){
-			pa=(char*) malloc(sizeof(pathsVar[k])+sizeof("/")+sizeof(commandStructTable.command[count][0])+1);
-			strcpy(pa,pathsVar[k]);
-			strcat(pa,"/");
-			//find path
-			strcat(pa,commandStructTable.command[count][0]);
-			if (hasFile(pa)==false){
-				break;
-			}
-	}
-
-	if (hasFile(pa)==true){
-				printf("no file found in paths");
-			//return 1;
-			}
-	execv(pa,commandStructTable.command[count]);
-
 
 
 	return 0;
@@ -379,7 +359,12 @@ int pipefunction(void){
 }
 
 
-int parsePath(void){
+
+
+
+
+int parsePath(void)
+{
 	char * cmnd = malloc(strlen(varTable.word[3]) + 1); 
 	strcpy(cmnd, varTable.word[3]);
 
@@ -406,7 +391,8 @@ int parsePath(void){
 }
 
 
-bool hasFile(char* file){
+bool hasFile(char* file)
+{
 	if (file[0]!='.'){
 	char* temp = (char*) malloc(sizeof(file)+sizeof(".")+1);
 	strcpy(temp,".");
@@ -422,11 +408,19 @@ bool hasFile(char* file){
 
 int addToCommand(char* cm)
 {
-	
+	if (strcmp(cm," ")==0){
+		return 1;
+	}
+
 	char * temp=Alexpansion(cm);
 	char * temp2=envExpansion(temp);
-
-	if (strcmp(temp2,"|")!=0){
+	if (strcmp(temp2,">")==0){
+		commandStructTable.input[numPipes]=true;
+	}
+	else if (strcmp(temp2,"<")==0){
+		commandStructTable.output[numPipes]=true;
+	}
+	else if (strcmp(temp2,"|")!=0){
 	commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=temp2;
 	commandStructTable.size[numPipes]++;
 	}
@@ -440,7 +434,7 @@ int addToCommand(char* cm)
 }
 
 
-char* Alexpansion(char* cmnd){
+char* Alexpansion(char* cmnd) {
 
 	
 		int start=0;
@@ -461,12 +455,10 @@ char* Alexpansion(char* cmnd){
 			}
 			return cmnd;
 
-		}
+}
 
 
-
-
-char* envExpansion(char* cmnd){
+char* envExpansion(char* cmnd) {
 	int iDelete=100;
 	int indexC=0;
 	bool startString=false;
