@@ -422,15 +422,12 @@ bool hasFile(char* file){
 
 int addToCommand(char* cm)
 {
-	char* commandTest="hello/${HOME}/ls";
-	envExpansion(commandTest);
+	
 	char * temp=Alexpansion(cm);
-	cm=temp;
-	temp=Alexpansion(cm);
-	cm=temp;
+	char * temp2=envExpansion(temp);
 
-	if (strcmp(cm,"|")!=0){
-	commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=cm;
+	if (strcmp(temp2,"|")!=0){
+	commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=temp2;
 	commandStructTable.size[numPipes]++;
 	}
 	else{
@@ -444,6 +441,7 @@ int addToCommand(char* cm)
 
 
 char* Alexpansion(char* cmnd){
+
 	
 		int start=0;
 		for (int j=0; j<strlen(cmnd); j++){
@@ -461,7 +459,7 @@ char* Alexpansion(char* cmnd){
 					return Alexpansion(aliasTable.word[i]);
 				}
 			}
-			return check;
+			return cmnd;
 
 		}
 
@@ -469,41 +467,72 @@ char* Alexpansion(char* cmnd){
 
 
 char* envExpansion(char* cmnd){
+	int iDelete=100;
+	int indexC=0;
 	bool startString=false;
-	char* ret=cmnd;
-	int iDelete;
+	bool first=false;
 	for (int i=0; i<strlen(cmnd); i++){
-		if (cmnd[i]=='$'){
+		if (cmnd[i]=='$' && startString==false){
 			startString=true;
 			iDelete=i;
 		}
-		if (startString==true){
-			char* temp= malloc(sizeof(cmnd)+1);
-			strcpy(temp,cmnd);
-			char* begging = strtok(temp, "{");
-			char* middle=strtok(NULL, "$");
-			char* env=strtok(middle, "}");
-			strcpy(&begging[iDelete], &begging[iDelete + 1]);
-		
-			char* end=strtok(NULL,"}");
-			startString=false;
-			for (int k=0; k<varIndex; k++){
-				if (strcmp(env,varTable.var[k])==0){
-					env=malloc(sizeof(varTable.word[k])+1);
-					env=varTable.word[k];
-				}
+		if (cmnd[i]=='}' && startString==true && first==false){
+			first=true;
+			indexC=i;
+		}
+	}
 
+	
+
+	if (startString==true){
+		bool startword=false;
+		bool endWord=false;
+		char* begging=calloc(iDelete,sizeof(char));
+		char* word=calloc(indexC-iDelete-2,sizeof(char));
+		char* end=calloc(strlen(cmnd)-indexC,sizeof(char));
+		for (int i=0;i<iDelete;i++){
+			begging[i]=cmnd[i];
+		}
+		int counter=0;
+		for (int i=iDelete+2; i<indexC;i++){
+			if (cmnd[i]=='{'){}
+			else if (cmnd[i]=='}'){
+				indexC=i;
+				break;
 			}
-
-			ret=malloc(sizeof(begging)+sizeof(end)+sizeof(env)+1);
-			strcpy(ret,begging);
-			strcat(ret,env);
-			strcat(ret,end);
-			printf("%s \n",ret);
-
+			else{
+				word[counter]=cmnd[i];
+				counter++;
+			}
+		}
+		counter=0;
+		for (int i=indexC+1; i<strlen(cmnd);i++){
+			end[counter]=cmnd[i];
+			counter++;
 		}
 
+		bool not=true;
+		for(int i = 0; i < varIndex; i++) {
+			if(strcmp(varTable.var[i], word) == 0) {
+				char* temperary=malloc(sizeof(varTable.word[i])+1);
+				strcpy(temperary,varTable.word[i]);
+				word=temperary;
+				not=false;
+			}
+		}
+		if (not==true){
+			return cmnd;
+		}		
+		char* r=calloc(strlen(begging)+strlen(word)+strlen(end),sizeof(char));
+		strcpy(r,begging);
+		strcat(r,word);
+
+		strcat(r,end);
+		return r;
+
+
 	}
-	return ret;
+
+	return cmnd;
 
 }
