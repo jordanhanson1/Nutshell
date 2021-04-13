@@ -18,7 +18,8 @@ struct cTable
    char *command[128][100];
    int size[128];
    bool output[128];
-   char *file[128];
+   char *fileIn[128];
+   char *fileOut[128];
    bool input[128];
    bool background[128];
    bool path[128];
@@ -47,3 +48,5 @@ char *pathsVar[100];
 
 int numCommands;
 int comI[100];
+bool addFileIn;
+bool addFileOut;

@@ -248,17 +248,17 @@ int cmndLong2(void){
 	int pid=fork();
 	if (pid==0){
 		if (commandStructTable.output[0]==true) { 
-        	int fil = creat(commandStructTable.file[0], O_TRUNC);
+        	int fil = creat(commandStructTable.fileOut[0], O_TRUNC);
         	dup2(fil, STDOUT_FILENO);
         	close(fil);
     	}   
 		if (commandStructTable.append[0]==true) { 
-        	int fil = creat(commandStructTable.file[0], O_APPEND);
+        	int fil = creat(commandStructTable.fileOut[0], O_APPEND);
         	dup2(fil, STDOUT_FILENO);
         	close(fil);
     	}   
 		if (commandStructTable.input[0]==true) { 
-        	int fil = creat(commandStructTable.file[0], 0644);
+        	int fil = creat(commandStructTable.fileIn[0], 0644);
         	dup2(fil, STDIN_FILENO);
         	close(fil);
     	}   
@@ -273,7 +273,9 @@ int cmndLong2(void){
 		commandStructTable.size[0]=0;
 		commandStructTable.output[0]=false;
 		commandStructTable.input[0]=false;
-		commandStructTable.file[0]=NULL;
+		commandStructTable.fileIn[0]=NULL;
+		commandStructTable.fileOut[0]=NULL;
+
 	}
 
 
@@ -315,17 +317,17 @@ int pipefunction(void){
 			}
 			}
 			if (commandStructTable.output[i]==true) { 
-        	int fil = creat(commandStructTable.file[i], O_TRUNC);
+        	int fil = creat(commandStructTable.fileOut[i], O_TRUNC);
         	dup2(fil, STDOUT_FILENO);
         	close(fil);
     		}   
 			if (commandStructTable.append[i]==true) { 
-        	int fil = creat(commandStructTable.file[i], O_APPEND);
+        	int fil = creat(commandStructTable.fileOut[i], O_APPEND);
         	dup2(fil, STDOUT_FILENO);
         	close(fil);
     		}   
 			if (commandStructTable.input[i]==true) { 
-        		int fil = creat(commandStructTable.file[i], 0644);
+        		int fil = creat(commandStructTable.fileIn[i], 0644);
         		dup2(fil, STDIN_FILENO);
         		close(fil);
     		}   
@@ -350,7 +352,8 @@ int pipefunction(void){
 		commandStructTable.size[i]=0;
 		commandStructTable.output[i]=false;
 		commandStructTable.input[i]=false;
-		commandStructTable.file[i]=NULL;
+		commandStructTable.fileIn[i]=NULL;
+		commandStructTable.fileOut[i]=NULL;
 	}
 	numPipes=0;
 	waitpid(-1, NULL, 0);
@@ -413,19 +416,27 @@ int addToCommand(char* cm)
 	}
 	char * temp=Alexpansion(cm);
 	char * temp2=envExpansion(temp);
-	printf("temp2 : %s \n",temp2);
-	if (commandStructTable.input[numPipes]==true || commandStructTable.output[numPipes]==true){
-		commandStructTable.file[numPipes]=cm;
-		printf("file : %s \n",cm);
+	if (addFileIn==true  && strcmp(temp2,">>")!=0 && strcmp(temp2,">")!=0){
+		commandStructTable.fileIn[numPipes]=temp2;
+		addFileIn=false;
+		printf("in file :%s \n",temp2);
+	}
+	else if (addFileOut==true && strcmp(temp2,"<")!=0){
+		commandStructTable.fileOut[numPipes]=temp2;
+		addFileOut=false;
+		printf("out file :%s \n",temp2);
 	}
 	else if (strcmp(temp2,">")==0){
 		commandStructTable.output[numPipes]=true;
+		addFileOut=true;
 	}
 	else if (strcmp(temp2,">>")==0){
 		commandStructTable.append[numPipes]=true;
+		addFileOut=true;
 	}
 	else if (strcmp(temp2,"<")==0){
 		commandStructTable.input[numPipes]=true;
+		addFileIn=true;
 	}
 	else if (strcmp(temp2,"|")!=0){
 		char* command;
@@ -436,6 +447,7 @@ int addToCommand(char* cm)
 				for (int j=start;j<i;j++ ){
 					tempCommand[j-start]=temp2[j];
 				}
+				start=i+1;
 				commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=tempCommand;
 				commandStructTable.size[numPipes]++;
 			}
@@ -443,6 +455,14 @@ int addToCommand(char* cm)
 		if (start==0){
 			commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=temp2;
 			commandStructTable.size[numPipes]++;}
+		else{
+				char* tempCommand=calloc(strlen(temp2)-start,sizeof(char));
+				for (int j=start;j<strlen(temp2);j++ ){
+					tempCommand[j-start]=temp2[j];
+				}
+				commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=tempCommand;
+				commandStructTable.size[numPipes]++;
+		}
 	}
 	else if (strcmp(temp2,"|")==0){
 		numPipes++;
