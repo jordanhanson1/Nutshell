@@ -258,7 +258,7 @@ int cmndLong2(void){
         	close(fil);
     	}   
 		if (commandStructTable.input[0]==true) { 
-        	int fil = creat(commandStructTable.fileIn[0], 0644);
+        	int fil = open(commandStructTable.fileIn[0], O_RDONLY);
         	dup2(fil, STDIN_FILENO);
         	close(fil);
     	}   
@@ -419,12 +419,12 @@ int addToCommand(char* cm)
 	if (addFileIn==true  && strcmp(temp2,">>")!=0 && strcmp(temp2,">")!=0){
 		commandStructTable.fileIn[numPipes]=temp2;
 		addFileIn=false;
-		printf("in file :%s \n",temp2);
+		//printf("in file :%s \n",temp2);
 	}
 	else if (addFileOut==true && strcmp(temp2,"<")!=0){
 		commandStructTable.fileOut[numPipes]=temp2;
 		addFileOut=false;
-		printf("out file :%s \n",temp2);
+		//printf("out file :%s \n",temp2);
 	}
 	else if (strcmp(temp2,">")==0){
 		commandStructTable.output[numPipes]=true;
