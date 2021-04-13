@@ -21,6 +21,8 @@ struct cTable
    char *file[128];
    bool input[128];
    bool background[128];
+   bool path[128];
+   bool append[128];
 };
 
 char cwd[PATH_MAX];

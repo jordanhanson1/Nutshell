@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <signal.h>
 #include <ctype.h>
+#include <fcntl.h>
 
 
 #include <stdbool.h>
@@ -246,6 +247,21 @@ int cmndLong2(void){
 	int status;
 	int pid=fork();
 	if (pid==0){
+		if (commandStructTable.output[0]==true) { 
+        	int fil = creat(commandStructTable.file[0], O_TRUNC);
+        	dup2(fil, STDOUT_FILENO);
+        	close(fil);
+    	}   
+		if (commandStructTable.append[0]==true) { 
+        	int fil = creat(commandStructTable.file[0], O_APPEND);
+        	dup2(fil, STDOUT_FILENO);
+        	close(fil);
+    	}   
+		if (commandStructTable.input[0]==true) { 
+        	int fil = creat(commandStructTable.file[0], 0644);
+        	dup2(fil, STDIN_FILENO);
+        	close(fil);
+    	}   
 		execv(pa,commandStructTable.command[0]);
 		}
 	else{
@@ -298,11 +314,29 @@ int pipefunction(void){
 				break;
 			}
 			}
+			if (commandStructTable.output[i]==true) { 
+        	int fil = creat(commandStructTable.file[i], O_TRUNC);
+        	dup2(fil, STDOUT_FILENO);
+        	close(fil);
+    		}   
+			if (commandStructTable.append[i]==true) { 
+        	int fil = creat(commandStructTable.file[i], O_APPEND);
+        	dup2(fil, STDOUT_FILENO);
+        	close(fil);
+    		}   
+			if (commandStructTable.input[i]==true) { 
+        		int fil = creat(commandStructTable.file[i], 0644);
+        		dup2(fil, STDIN_FILENO);
+        		close(fil);
+    		}   
 			execv(pa,commandStructTable.command[i]);
 			}
 		else{
 			if (i != numPipes){
 				close(pipeOutside[i][1]);
+			}
+			if (i==numPipes){
+				waitpid(-1,NULL,0);
 			}
 			}
 
@@ -379,19 +413,36 @@ int addToCommand(char* cm)
 	}
 	char * temp=Alexpansion(cm);
 	char * temp2=envExpansion(temp);
+	printf("temp2 : %s \n",temp2);
 	if (commandStructTable.input[numPipes]==true || commandStructTable.output[numPipes]==true){
 		commandStructTable.file[numPipes]=cm;
 		printf("file : %s \n",cm);
 	}
 	else if (strcmp(temp2,">")==0){
-		commandStructTable.input[numPipes]=true;
-	}
-	else if (strcmp(temp2,"<")==0){
 		commandStructTable.output[numPipes]=true;
 	}
+	else if (strcmp(temp2,">>")==0){
+		commandStructTable.append[numPipes]=true;
+	}
+	else if (strcmp(temp2,"<")==0){
+		commandStructTable.input[numPipes]=true;
+	}
 	else if (strcmp(temp2,"|")!=0){
-	commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=temp2;
-	commandStructTable.size[numPipes]++;
+		char* command;
+		int start=0;
+		for (int i=0; i<strlen(temp2);i++){
+			if (temp2[i]==' '){
+				char* tempCommand=calloc(i-start,sizeof(char));
+				for (int j=start;j<i;j++ ){
+					tempCommand[j-start]=temp2[j];
+				}
+				commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=tempCommand;
+				commandStructTable.size[numPipes]++;
+			}
+		}
+		if (start==0){
+			commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=temp2;
+			commandStructTable.size[numPipes]++;}
 	}
 	else if (strcmp(temp2,"|")==0){
 		numPipes++;
@@ -409,21 +460,42 @@ int addToCommand(char* cm)
 
 char* Alexpansion(char* cmnd) {
 
-	
 		int start=0;
+		int end=strlen(cmnd);
+		bool starting=false;
 		for (int j=0; j<strlen(cmnd); j++){
-			if (isalpha(cmnd[j]) || isdigit(cmnd[j])){
+			if (starting==false && (isalpha(cmnd[j]) || isdigit(cmnd[j])) ){
 				start=j;
+				starting=true;
+			}
+			if (starting==true && (isalpha(cmnd[j])==false && isdigit(cmnd[j])==false) ){
+				end=j;
 				break;
 			}
 		}
-		char* check=malloc((strlen(cmnd)-start)*sizeof(char) + 1);
-		for (int i=0; i<(strlen(cmnd)-start); i++){
+		char* begging=calloc(start,sizeof(char));
+		char* ending=calloc(strlen(cmnd)-end+1,sizeof(char));
+		for (int i=0; i<strlen(cmnd);i++){
+			if (i<start){
+				begging[i]=cmnd[i];
+			}
+			if (i>=end){
+				ending[i-end]=cmnd[i];
+			}
+		}
+
+		char* check=calloc(end-start,sizeof(char));
+		for (int i=0; i<(end-start); i++){
 			check[i]=cmnd[start+i];
 		}
 			for (int i = 0; i < aliasIndex; i++) {
 				if(strcmp(aliasTable.name[i], check) == 0){
-					return Alexpansion(aliasTable.word[i]);
+					char* middle= Alexpansion(aliasTable.word[i]);
+					char* whole=malloc(sizeof(middle)+sizeof(begging)+sizeof(ending)+1);
+					strcpy(whole,begging);
+					strcat(whole,middle);
+					strcat(whole,ending);
+					return whole;
 				}
 			}
 			return cmnd;
@@ -481,7 +553,7 @@ char* envExpansion(char* cmnd) {
 			if(strcmp(varTable.var[i], word) == 0) {
 				char* temperary=malloc(sizeof(varTable.word[i])+1);
 				strcpy(temperary,varTable.word[i]);
-				word=temperary;
+				word=Alexpansion(temperary);
 				not=false;
 			}
 		}
@@ -493,7 +565,7 @@ char* envExpansion(char* cmnd) {
 		strcat(r,word);
 
 		strcat(r,end);
-		return r;
+		return envExpansion(r);
 
 
 	}
