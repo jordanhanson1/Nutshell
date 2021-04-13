@@ -271,7 +271,6 @@ int cmndLong2(void){
 int pipefunction(void){
 	int count=0;
 	int pipeOutside[numPipes][2];
-	printf("num pipes : %i \n",numPipes);
 	for (int i=0; i<numPipes;i++){
 	if (pipe(pipeOutside[i])<0){
 		printf("error in creating pipes");
@@ -280,21 +279,13 @@ int pipefunction(void){
 
 	for (int i=0; i<numPipes+1;i++){
 		count++;
-		for (int j=0; j<commandStructTable.size[i]; j++){
-			printf("cmnd : %s \n",commandStructTable.command[i][j]);
-		}
 
 		if (fork()==0){
-			printf("child %i \n",i);
 			 if (i != numPipes){
-				close(1);
-				dup2(pipeOutside[i][1],STDOUT_FILENO);
-				//close(pipeOutside[i][0]);
+				dup2(pipeOutside[i][1],1);
 			}
 			if (i !=0){
-				//close(pipeOutside[i-1][1]);
 				dup2(pipeOutside[i-1][0],STDIN_FILENO);
-
 			}
 			char* pa;
 			for (int k=0; k<numPaths; k++){
@@ -310,22 +301,22 @@ int pipefunction(void){
 			execv(pa,commandStructTable.command[i]);
 			}
 		else{
+			if (i != numPipes){
+				close(pipeOutside[i][1]);
+			}
 			}
 
 	}
 	
-	for (int i=0; i<numPipes;i++){
-		close(pipeOutside[i]);
-	}
 
 	for (int i=0; i<numPipes+1;i++){
 		for (int j=0; j<commandStructTable.size[i];j++){
-			commandStructTable.command[i][j]="";
+			commandStructTable.command[i][j]=NULL;
 		}
 		commandStructTable.size[i]=0;
 		commandStructTable.output[i]=false;
 		commandStructTable.input[i]=false;
-		commandStructTable.file[i]="";
+		commandStructTable.file[i]=NULL;
 	}
 	numPipes=0;
 	waitpid(-1, NULL, 0);
@@ -333,7 +324,6 @@ int pipefunction(void){
 	return 0;
 
 }
-
 
 
 
