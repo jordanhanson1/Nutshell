@@ -33,7 +33,7 @@ ANYCHAR2         [|)(*&%$#@!`;,\.a-zA-Z0-9'/*_=~ -][}{)(|*&%$#@!`;,\.a-zA-Z0-9'/
 <string_condition>{ANYCHAR}+     { yylval.string = strdup(yytext); return STRING;}
 <string_condition>[\"]          {BEGIN(INITIAL);}
 
-[ ]		            { }
+[ ]	                { }
 bye                 { return BYE; }
 cd		            { return CD;}
 alias		        { return ALIAS; }

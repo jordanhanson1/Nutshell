@@ -21,13 +21,10 @@ int runEcho(char *s);
 int runPrintEnv();
 int runSetEnv(char *name, char *value);
 int runUnsetEnv(char *variable);
-int runNotBuilt1(char* cmnd);
-int runNotBuilt2(char* cmnd, char* arg);
 int unAlias(char* name);
 int printAl(void);
 int cmndLong2(void);
 bool hasFile(char* file);
-int aliasCmnd(char* name);
 
 int addToCommand(char* cm);
 int pipefunction(void);
@@ -63,7 +60,6 @@ myCommand :
 	| SETENV STRING STRING END		{runSetEnv($2, $3); return 1;}
 	| UNSETENV STRING END   		{runUnsetEnv($2); return 1;}
   	| UNALIAS ALIASCOM END			{unAlias($2); return 1;}
-	| ALIASCOM END					{aliasCmnd($1); return 1;}
 
  nonBuilt : 
  	STRING											{addToCommand($1);}
@@ -105,37 +101,8 @@ int runCD(char* arg) {
 }
 
 
-int runNotBuilt1(char* cmnd){
-	char* path="/bin/";
-	char* pathWithCMND;
-	pathWithCMND = malloc(strlen(path)+strlen(cmnd)); 
-	strcpy(pathWithCMND, path); 
-	strcat(pathWithCMND, cmnd); 
-	printf("%s\n",pathWithCMND);
-	if (fork()==0){
-		execl(pathWithCMND,pathWithCMND,(char*) NULL);
-	}
-	else{
-		waitpid(-1, NULL, 0);
-	}
-	return 1;
-}
 
-int runNotBuilt2(char* cmnd, char* arg){
-	char* path="/bin/";
-	char* pathWithCMND;
-	pathWithCMND = malloc(strlen(path)+strlen(cmnd)); 
-	strcpy(pathWithCMND, path); 
-	strcat(pathWithCMND, cmnd); 
-	printf("%s\n",pathWithCMND);
-	if (fork()==0){
-		execl(pathWithCMND,pathWithCMND,arg,(char*) NULL);
-	}
-	else{
-		waitpid(-1, NULL, 0);
-	}
-	return 1;
-}
+
 
 int runSetAlias(char *name, char *word) {
 	for (int i = 0; i < aliasIndex; i++) {
@@ -255,16 +222,7 @@ int printAl(void){
 
 }
 
-int aliasCmnd(char* name){
-	for (int i=0; i<aliasIndex; i++){
-		if (strcmp(name,aliasTable.name[i])==0){
-			return 1;
-		}
 
-	}
-	printf("could not find name %s \n", name);
-	return 1;
-}
 
 
 int cmndLong2(void){
@@ -294,9 +252,12 @@ int cmndLong2(void){
 		waitpid(-1, NULL, 0);
 	}
 	for (int i=0; i<commandStructTable.size[0]; i++){
-		commandStructTable.command[0][i]="";
+		commandStructTable.command[0][i]=NULL;
 	}
-	commandStructTable.size[0]=0;
+		commandStructTable.size[0]=0;
+		commandStructTable.output[0]=false;
+		commandStructTable.input[0]=false;
+		commandStructTable.file[0]=NULL;
 	}
 
 
@@ -362,6 +323,9 @@ int pipefunction(void){
 			commandStructTable.command[i][j]="";
 		}
 		commandStructTable.size[i]=0;
+		commandStructTable.output[i]=false;
+		commandStructTable.input[i]=false;
+		commandStructTable.file[i]="";
 	}
 	numPipes=0;
 	waitpid(-1, NULL, 0);
@@ -439,10 +403,14 @@ int addToCommand(char* cm)
 	commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=temp2;
 	commandStructTable.size[numPipes]++;
 	}
-	else{
+	else if (strcmp(temp2,"|")==0){
 		numPipes++;
 		commandStructTable.size[numPipes]=0;
 		commandIndex=0;
+	}
+	else {
+		printf("error input %s \n",temp2);
+
 	}
 	commandIndex++;
 	return 1;
