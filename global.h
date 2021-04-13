@@ -15,9 +15,10 @@ struct aTable
 
 struct cTable
 {
-   char* command[128][100];
+   char *command[128][100];
    int size[128];
    bool output[128];
+   char *file[128];
    bool input[128];
    bool background[128];
 };

@@ -326,13 +326,13 @@ int pipefunction(void){
 		if (fork()==0){
 			printf("child %i \n",i);
 			 if (i != numPipes){
+				close(1);
 				dup2(pipeOutside[i][1],STDOUT_FILENO);
 				//close(pipeOutside[i][0]);
 			}
 			if (i !=0){
-				close(pipeOutside[i-1][1]);
-				dup2(pipeOutside[i-1][0],STDIN_FILENO);
 				//close(pipeOutside[i-1][1]);
+				dup2(pipeOutside[i-1][0],STDIN_FILENO);
 
 			}
 			char* pa;
@@ -349,12 +349,21 @@ int pipefunction(void){
 			execv(pa,commandStructTable.command[i]);
 			}
 		else{
-				
 			}
-
 
 	}
 	
+	for (int i=0; i<numPipes;i++){
+		close(pipeOutside[i]);
+	}
+
+	for (int i=0; i<numPipes+1;i++){
+		for (int j=0; j<commandStructTable.size[i];j++){
+			commandStructTable.command[i][j]="";
+		}
+		commandStructTable.size[i]=0;
+	}
+	numPipes=0;
 	waitpid(-1, NULL, 0);
 
 	return 0;
@@ -414,10 +423,13 @@ int addToCommand(char* cm)
 	if (strcmp(cm," ")==0){
 		return 1;
 	}
-
 	char * temp=Alexpansion(cm);
 	char * temp2=envExpansion(temp);
-	if (strcmp(temp2,">")==0){
+	if (commandStructTable.input[numPipes]==true || commandStructTable.output[numPipes]==true){
+		commandStructTable.file[numPipes]=cm;
+		printf("file : %s \n",cm);
+	}
+	else if (strcmp(temp2,">")==0){
 		commandStructTable.input[numPipes]=true;
 	}
 	else if (strcmp(temp2,"<")==0){
