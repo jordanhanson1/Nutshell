@@ -310,6 +310,7 @@ int cmndLong2(void){
 int pipefunction(void){
 	int count=0;
 	int pipeOutside[numPipes][2];
+	printf("num pipes : %i \n",numPipes);
 	for (int i=0; i<numPipes;i++){
 	if (pipe(pipeOutside[i])<0){
 		printf("error in creating pipes");
@@ -324,12 +325,14 @@ int pipefunction(void){
 
 		if (fork()==0){
 			printf("child %i \n",i);
-			if (i != numPipes){
-				dup2(pipeOutside[i][1],1);
+			 if (i != numPipes){
+				dup2(pipeOutside[i][1],STDOUT_FILENO);
+				//close(pipeOutside[i][0]);
 			}
 			if (i !=0){
-				dup2(pipeOutside[i-1][0],0);
 				close(pipeOutside[i-1][1]);
+				dup2(pipeOutside[i-1][0],STDIN_FILENO);
+				//close(pipeOutside[i-1][1]);
 
 			}
 			char* pa;
@@ -345,14 +348,14 @@ int pipefunction(void){
 			}
 			execv(pa,commandStructTable.command[i]);
 			}
-			else{
+		else{
 				
-				waitpid(-1, NULL, 0);
 			}
 
 
 	}
-
+	
+	waitpid(-1, NULL, 0);
 
 	return 0;
 
