@@ -15,14 +15,14 @@
 int parsePath(void);
 int yylex(void);
 int yyerror(char *s);
-int runCD(char* arg);
+int runCD(char* dir);
 int runSetAlias(char *name, char *word);
 int runLS(void);
 int runEcho(char *s);
-int runPrintEnv();
+int runPrintEnv(void);
 int runSetEnv(char *name, char *value);
-int runUnsetEnv(char *variable);
-int unAlias(char* name);
+int runUnsetEnv(char *var);
+int unAlias(char* al);
 int printAl(void);
 int cmndLong2(void);
 bool hasFile(char* file);
@@ -32,6 +32,7 @@ int pipefunction(void);
 
 char* Alexpansion(char* word);
 char* envExpansion(char* cmnd);
+char* envExpansionForUnset(char* cmnd);
 
 %}
 
@@ -40,7 +41,7 @@ char* envExpansion(char* cmnd);
 %type<string> nonBuilt
 %start cmd_line
 %token <string> BYE CD UNSETENV ANYSTRING ALIASCOM LEFTCURLY
-%token <string> END PIPE PRINTENV UNALIAS INPUT AND RIGHTCURLY
+%token <string> END PIPE UNALIAS INPUT AND RIGHTCURLY
 %token <string> STRING SETENV ALIAS OUTPUT BACKSLASH
 
 %%
@@ -55,9 +56,8 @@ myCommand :
   
  built_in :
   	| CD STRING END        			{runCD($2); return 1;}
-	| ALIAS END						{printAl(); return 1;}
+	| ALIAS END						{addToCommand("alias"); cmndLong2(); return 1;}
 	| ALIAS STRING STRING END		{runSetAlias($2, $3); return 1;}
-	| PRINTENV						{runPrintEnv();}
 	| SETENV STRING STRING END		{runSetEnv($2, $3); return 1;}
 	| UNSETENV STRING END   		{runUnsetEnv($2); return 1;}
   	| UNALIAS STRING END			{unAlias($2); return 1;}
@@ -74,7 +74,9 @@ int yyerror(char *s) {
   return 0;
   }
 
-int runCD(char* arg) {
+int runCD(char* dir) {
+	char* temp= Alexpansion(dir);
+	char* arg=envExpansion(temp);
 	if (arg[0] != '/') { // arg is relative path
 		strcat(varTable.word[0], "/");
 		strcat(varTable.word[0], arg);
@@ -155,7 +157,8 @@ int runSetEnv(char *variable, char *word) {
 	}
 }
 
-int runUnsetEnv(char *variable) {
+int runUnsetEnv(char *var) {
+	char* variable= Alexpansion(var);
 	bool present = false;
 	int currIndex = 0;
 	for(int i = 0; i < varIndex; i++) {
@@ -191,8 +194,8 @@ int runUnsetEnv(char *variable) {
 
 }
 
-int unAlias(char* word){
-
+int unAlias(char* al){
+	char * word=envExpansionForUnset(al);
 	for (int i=0; i<aliasIndex; i++){
 		if (strcmp(aliasTable.name[i],word)==0){
 			strcpy(aliasTable.name[i], "");
@@ -232,6 +235,8 @@ int cmndLong2(void){
 
 
 	if (numPipes==0){
+
+	if (commandStructTable.path[0]==true){
 	for (int i=0; i<numPaths; i++){
 	pa=(char*) malloc(sizeof(pathsVar[i])+sizeof("/")+sizeof(commandStructTable.command[0][0])+1);
 	strcpy(pa,pathsVar[i]);
@@ -242,7 +247,7 @@ int cmndLong2(void){
 		break;
 	}
 	}
-
+	}
 
 	int status;
 	int pid=fork();
@@ -270,7 +275,16 @@ int cmndLong2(void){
 		else if (commandStructTable.errorOut[0]==true){
 			dup2(STDOUT_FILENO, STDERR_FILENO);
 		}
-		execv(pa,commandStructTable.command[0]);
+
+		if (commandStructTable.printalias[0]==true){
+			printAl();
+		}
+		else if (commandStructTable.printenv[0]==true){
+			runPrintEnv();
+		}
+		else{
+			execv(pa,commandStructTable.command[0]);
+		}
 		}
 	else{
 		if (background==false){
@@ -287,6 +301,9 @@ int cmndLong2(void){
 		commandStructTable.fileError[0]=false;
 		commandStructTable.errorOut[0]=false;
 		commandStructTable.fileError[0]=NULL;
+		commandStructTable.printenv[0]=false;
+		commandStructTable.printalias[0]=false;
+		commandStructTable.path[0]=false;
 
 	}
 
@@ -469,7 +486,16 @@ int addToCommand(char* cm)
 	else if (strcmp(temp2,"&")==0){
 		background=true;
 	}
+	else if (strcmp(temp2,"printenv")==0){
+		commandStructTable.printenv[numPipes]=true;
+		commandStructTable.path[numPipes]=false;
+	}
+	else if (strcmp(temp2,"alias")==0){
+		commandStructTable.printalias[numPipes]=true;
+		commandStructTable.path[numPipes]=false;
+	}
 	else if (strcmp(temp2,"|")!=0){
+		commandStructTable.path[numPipes]=true;
 		char* command;
 		int start=0;
 		for (int i=0; i<strlen(temp2);i++){
@@ -623,4 +649,73 @@ char* envExpansion(char* cmnd) {
 
 	return cmnd;
 
+}
+
+char* envExpansionForUnset(char* cmnd){
+	int iDelete=100;
+	int indexC=0;
+	bool startString=false;
+	bool first=false;
+	for (int i=0; i<strlen(cmnd); i++){
+		if (cmnd[i]=='$' && startString==false){
+			startString=true;
+			iDelete=i;
+		}
+		if (cmnd[i]=='}' && startString==true && first==false){
+			first=true;
+			indexC=i;
+		}
+	}
+
+	
+
+	if (startString==true){
+		bool startword=false;
+		bool endWord=false;
+		char* begging=calloc(iDelete,sizeof(char));
+		char* word=calloc(indexC-iDelete-2,sizeof(char));
+		char* end=calloc(strlen(cmnd)-indexC,sizeof(char));
+		for (int i=0;i<iDelete;i++){
+			begging[i]=cmnd[i];
+		}
+		int counter=0;
+		for (int i=iDelete+2; i<indexC;i++){
+			if (cmnd[i]=='{'){}
+			else if (cmnd[i]=='}'){
+				indexC=i;
+				break;
+			}
+			else{
+				word[counter]=cmnd[i];
+				counter++;
+			}
+		}
+		counter=0;
+		for (int i=indexC+1; i<strlen(cmnd);i++){
+			end[counter]=cmnd[i];
+			counter++;
+		}
+
+		bool not=true;
+		for(int i = 0; i < varIndex; i++) {
+			if(strcmp(varTable.var[i], word) == 0) {
+				word=malloc(sizeof(varTable.word[i])+1);
+				strcpy(word,varTable.word[i]);
+				not=false;
+			}
+		}
+		if (not==true){
+			return cmnd;
+		}		
+		char* r=calloc(strlen(begging)+strlen(word)+strlen(end),sizeof(char));
+		strcpy(r,begging);
+		strcat(r,word);
+
+		strcat(r,end);
+		return envExpansion(r);
+
+
+	}
+
+	return cmnd;
 }

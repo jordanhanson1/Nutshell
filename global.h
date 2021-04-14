@@ -26,6 +26,8 @@ struct cTable
    bool input[128];
    bool path[128];
    bool append[128];
+   bool printenv[128];
+   bool printalias[128];
 };
 
 char cwd[PATH_MAX];
