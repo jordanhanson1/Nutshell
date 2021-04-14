@@ -60,7 +60,7 @@ myCommand :
 	| PRINTENV						{runPrintEnv();}
 	| SETENV STRING STRING END		{runSetEnv($2, $3); return 1;}
 	| UNSETENV STRING END   		{runUnsetEnv($2); return 1;}
-  	| UNALIAS ALIASCOM END			{unAlias($2); return 1;}
+  	| UNALIAS STRING END			{unAlias($2); return 1;}
 
  nonBuilt : 
  	STRING											{addToCommand($1);}
@@ -262,10 +262,19 @@ int cmndLong2(void){
         	dup2(fil, STDIN_FILENO);
         	close(fil);
     	}   
+		if (commandStructTable.fileEr[0]==true){
+			int fil = creat(commandStructTable.fileError[0], O_TRUNC);
+			dup2(fil, STDERR_FILENO);
+			close(fil);
+		}
+		else if (commandStructTable.errorOut[0]==true){
+			dup2(STDOUT_FILENO, STDERR_FILENO);
+		}
 		execv(pa,commandStructTable.command[0]);
 		}
 	else{
-		waitpid(-1, NULL, 0);
+		if (background==false){
+		waitpid(-1, NULL, 0);}
 	}
 	for (int i=0; i<commandStructTable.size[0]; i++){
 		commandStructTable.command[0][i]=NULL;
@@ -275,6 +284,9 @@ int cmndLong2(void){
 		commandStructTable.input[0]=false;
 		commandStructTable.fileIn[0]=NULL;
 		commandStructTable.fileOut[0]=NULL;
+		commandStructTable.fileError[0]=false;
+		commandStructTable.errorOut[0]=false;
+		commandStructTable.fileError[0]=NULL;
 
 	}
 
@@ -337,7 +349,7 @@ int pipefunction(void){
 			if (i != numPipes){
 				close(pipeOutside[i][1]);
 			}
-			if (i==numPipes){
+			if (i==numPipes && background==false){
 				waitpid(-1,NULL,0);
 			}
 			}
@@ -354,8 +366,12 @@ int pipefunction(void){
 		commandStructTable.input[i]=false;
 		commandStructTable.fileIn[i]=NULL;
 		commandStructTable.fileOut[i]=NULL;
+		commandStructTable.fileError[i]=false;
+		commandStructTable.errorOut[i]=false;
+		commandStructTable.fileError[i]=NULL;
 	}
 	numPipes=0;
+	background=false;
 	waitpid(-1, NULL, 0);
 
 	return 0;
@@ -437,6 +453,21 @@ int addToCommand(char* cm)
 	else if (strcmp(temp2,"<")==0){
 		commandStructTable.input[numPipes]=true;
 		addFileIn=true;
+	}
+	else if (strcmp(temp2, "2>&1")==0){
+		commandStructTable.errorOut[numPipes]=true;
+	}
+	else if (temp2[0]=='2' && temp2[1]=='>'){
+		commandStructTable.errorOut[numPipes]=true;
+		char* fil= calloc(strlen(temp2)-2,sizeof(char));
+		for (int i=2; i<strlen(temp2);i++){
+			fil[i-2]=temp2[i];
+		}
+		commandStructTable.fileEr[numPipes]=true;
+		commandStructTable.fileError[numPipes]=fil;
+	}
+	else if (strcmp(temp2,"&")==0){
+		background=true;
 	}
 	else if (strcmp(temp2,"|")!=0){
 		char* command;

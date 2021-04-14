@@ -16,6 +16,7 @@ int main()
     varIndex = 0;
     addFileIn = false;
     addFileOut = false;
+    background = false;
 
     getcwd(cwd, sizeof(cwd));
 
