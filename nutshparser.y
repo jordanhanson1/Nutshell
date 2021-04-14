@@ -171,15 +171,12 @@ int runUnsetEnv(char *var) {
 	if(present) {
 		if(strcmp(varTable.var[0], variable) == 0)
 			printf("cannot unset this variable\n");
-		if(strcmp(varTable.var[1], variable) == 0)
+		else if (strcmp(varTable.var[1], variable) == 0)
 			printf("cannot unset this variable\n");
-		if(strcmp(varTable.var[2], variable) == 0)
+		else if (strcmp(varTable.var[2], variable) == 0)
 			printf("cannot unset this variable\n");
-		if(strcmp(varTable.var[3], variable) == 0)
+		else if (strcmp(varTable.var[3], variable) == 0)
 			strcpy(varTable.word[3], "");
-		if(strcmp(varTable.var[4], variable) == 0) {
-			strcpy(varTable.word[4], "");
-		}
 		else {
 			strcpy(varTable.var[currIndex], "");
 			strcpy(varTable.word[currIndex], "");
@@ -495,7 +492,13 @@ int addToCommand(char* cm)
 		commandStructTable.path[numPipes]=false;
 	}
 	else if (strcmp(temp2,"|")!=0){
-		commandStructTable.path[numPipes]=true;
+		if (commandStructTable.size[numPipes]==0){
+			if (temp2[0]=='.'|| temp2[0]=='/'){
+				commandStructTable.path[numPipes]=false;}
+			else {
+				commandStructTable.path[numPipes]=true;
+			}
+		}
 		char* command;
 		int start=0;
 		for (int i=0; i<strlen(temp2);i++){
