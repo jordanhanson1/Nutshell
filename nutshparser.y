@@ -139,6 +139,8 @@ int runCD(char* dir) {
 }
 
 bool aliasLoopDetect(char* name, char* word){
+	bool here=false;
+	int index=0;
 	for (int i = 0; i < aliasIndex; i++) {
 		if(strcmp(name, word) == 0){
 			return true;
@@ -146,18 +148,17 @@ bool aliasLoopDetect(char* name, char* word){
 		else if((strcmp(aliasTable.name[i], name) == 0) && (strcmp(aliasTable.word[i], word) == 0)){
 			return true;
 		}
-		if (strcmp(aliasTable.name[i],word)){
-			return aliasLoopDetect(name,aliasTable.name[i]);
-		}
 	}
+	
 	return false;
+
 }
 
 
 
 int runSetAlias(char *name, char *word) {
 	
-	if (aliasLoopDetect(name,word)){
+	if (aliasLoopDetect(name,word)==false){
 	strcpy(aliasTable.name[aliasIndex], name);
 	strcpy(aliasTable.word[aliasIndex], word);
 	aliasIndex++;}
