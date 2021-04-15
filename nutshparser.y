@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <wordexp.h>
 
 
 #include <stdbool.h>
@@ -25,11 +26,12 @@ int runUnsetEnv(char *var);
 int unAlias(char* al);
 int printAl(void);
 int cmndLong2(void);
-bool hasFile(char* file);
+char* hasFile(char* file);
 
 int addToCommand(char* cm);
 int pipefunction(void);
-
+int  wildcardFunc();
+bool aliasLoopDetect(char* name, char* word);
 char* Alexpansion(char* word);
 char* envExpansion(char* cmnd);
 char* envExpansionForUnset(char* cmnd);
@@ -77,6 +79,39 @@ int yyerror(char *s) {
 int runCD(char* dir) {
 	char* temp= Alexpansion(dir);
 	char* arg=envExpansion(temp);
+	wordexp_t patt;
+    char **words;
+	bool wild=false;
+	char getrid;
+	for (int i=0; i<strlen(dir); i++){
+		if (dir[i]=='*'|| dir[i]=='?'){
+			wild = true;
+			getrid=dir[i];
+		}
+	}
+	if (wild == true){
+    if (wordexp(dir, &patt, 0) != 0){
+		printf("error in expanding wildcard");
+	}
+    words = patt.we_wordv;
+	if (patt.we_wordc==0){
+		char * t=malloc(sizeof(dir)+1);
+		strcpy(t,dir);
+		char *src, *dst;
+    	for (src = dst = t; *src != '\0'; src++) {
+        	*dst = *src;
+        	if (*dst != getrid) dst++;
+    	}
+    	*dst = '\0';
+		arg=t;
+	}
+	else{
+		arg = words[0];
+	}
+	}
+
+
+
 	if (arg[0] != '/') { // arg is relative path
 		strcat(varTable.word[0], "/");
 		strcat(varTable.word[0], arg);
@@ -103,28 +138,32 @@ int runCD(char* dir) {
 	}
 }
 
-
+bool aliasLoopDetect(char* name, char* word){
+	for (int i = 0; i < aliasIndex; i++) {
+		if(strcmp(name, word) == 0){
+			return true;
+		}
+		else if((strcmp(aliasTable.name[i], name) == 0) && (strcmp(aliasTable.word[i], word) == 0)){
+			return true;
+		}
+		if (strcmp(aliasTable.name[i],word)){
+			return aliasLoopDetect(name,aliasTable.name[i]);
+		}
+	}
+	return false;
+}
 
 
 
 int runSetAlias(char *name, char *word) {
-	for (int i = 0; i < aliasIndex; i++) {
-		if(strcmp(name, word) == 0){
-			printf("Error, expansion of \"%s\" would create a loop.\n", name);
-			return 1;
-		}
-		else if((strcmp(aliasTable.name[i], name) == 0) && (strcmp(aliasTable.word[i], word) == 0)){
-			printf("Error, expansion of \"%s\" would create a loop.\n", name);
-			return 1;
-		}
-		else if(strcmp(aliasTable.name[i], name) == 0) {
-			strcpy(aliasTable.word[i], word);
-			return 1;
-		}
-	}
+	
+	if (aliasLoopDetect(name,word)){
 	strcpy(aliasTable.name[aliasIndex], name);
 	strcpy(aliasTable.word[aliasIndex], word);
-	aliasIndex++;
+	aliasIndex++;}
+	else{
+		printf("Error, expansion of \"%s\" would create a loop.\n", name);
+	}
 
 	return 1;
 }
@@ -229,26 +268,26 @@ int printAl(void){
 int cmndLong2(void){
 	char* pa;
 	parsePath();
-
+	bool foundPath=true;
 
 	if (numPipes==0){
 	if (commandStructTable.printenv[0]==false && commandStructTable.printalias[0]==false){
 	if (commandStructTable.path[0]==true){
-	for (int i=0; i<numPaths; i++){
-	pa=(char*) malloc(sizeof(pathsVar[i])+sizeof("/")+sizeof(commandStructTable.command[0][0])+1);
-	strcpy(pa,pathsVar[i]);
-	strcat(pa,"/");
-	//printf("%s \n",commandStructTable.command[0][0]);
-	strcat(pa,commandStructTable.command[0][0]);
-	if (hasFile(pa)==false){
-		break;
-	}
-	}
+		foundPath=false;
+		pa =hasFile(commandStructTable.command[0][0]);
+		if (strcmp(pa,"none")!=0){
+			foundPath=true;
+		}
 	}
 	else{
 		pa=malloc(sizeof(commandStructTable.command[0][0])+1);
 		strcpy(pa,commandStructTable.command[0][0]);
+		foundPath=true;
 	}}
+	if (foundPath==false){
+		printf("could not find the executable in the path \n");
+		return 1;
+	}
 
 	int status;
 	int pid=fork();
@@ -259,7 +298,7 @@ int cmndLong2(void){
         	close(fil);
     	}   
 		if (commandStructTable.append[0]==true) { 
-        	int fil = creat(commandStructTable.fileOut[0], O_APPEND);
+        	int fil = open(commandStructTable.fileOut[0], 'a');
         	dup2(fil, STDOUT_FILENO);
         	close(fil);
     	}   
@@ -312,11 +351,13 @@ int cmndLong2(void){
 	else{
 	pipefunction();
 	}
-
+	background=false;
+	numPipes=0;
 	return 1;
 }
 
 int pipefunction(void){
+	bool foundPath=true;
 	int count=0;
 	int pipeOutside[numPipes][2];
 	for (int i=0; i<numPipes;i++){
@@ -331,21 +372,23 @@ int pipefunction(void){
 		char* pa;
 		if (commandStructTable.printenv[i]==false && commandStructTable.printalias[i]==false){
 		if (commandStructTable.path[i]==true){
-			for (int j=0; j<numPaths; j++){
-				pa=(char*) malloc(sizeof(pathsVar[j])+sizeof("/")+sizeof(commandStructTable.command[i][0])+1);
-				strcpy(pa,pathsVar[j]);
-				strcat(pa,"/");
-				//printf("%s \n",commandStructTable.command[i][0]);
-				strcat(pa,commandStructTable.command[i][0]);
-				if (hasFile(pa)==false){
-					break;
-				}
-				}
+			pa =hasFile(commandStructTable.command[i][0]);
+			if (strcmp(pa,"none")!=0){
+				foundPath=true;
 			}
+		}
 		else{
 			pa=malloc(sizeof(commandStructTable.command[i][0])+1);
 			strcpy(pa,commandStructTable.command[i][0]);
+			
+			foundPath=true;
 		}}
+
+		if (foundPath==false){
+			printf("could not find executable in the path");
+			return 1;
+		}
+
 		if (fork()==0){
 			 if (i != numPipes){
 				dup2(pipeOutside[i][1],STDOUT_FILENO);
@@ -353,23 +396,24 @@ int pipefunction(void){
 			if (i !=0){
 				dup2(pipeOutside[i-1][0],STDIN_FILENO);
 			}
+
 			if (commandStructTable.output[i]==true) { 
-        	int fil = creat(commandStructTable.fileOut[0], O_TRUNC);
-        	dup2(fil, STDOUT_FILENO);
-        	close(fil);
+        		int fil = creat(commandStructTable.fileOut[i], O_TRUNC);
+        		dup2(fil, STDOUT_FILENO);
+        		close(fil);
     		}   
 			if (commandStructTable.append[i]==true) { 
-        		int fil = creat(commandStructTable.fileOut[0], O_APPEND);
+        		int fil = open(commandStructTable.fileOut[i], 'a');
         		dup2(fil, STDOUT_FILENO);
         		close(fil);
     		}   
 			if (commandStructTable.input[i]==true) { 
-        		int fil = open(commandStructTable.fileIn[0], O_RDONLY);
+        		int fil = open(commandStructTable.fileIn[i], O_RDONLY);
         		dup2(fil, STDIN_FILENO);
         		close(fil);
     		}   
 			if (commandStructTable.fileEr[i]==true){
-				int fil = creat(commandStructTable.fileError[0], O_TRUNC);
+				int fil = creat(commandStructTable.fileError[i], O_TRUNC);
 				dup2(fil, STDERR_FILENO);
 				close(fil);
 			}
@@ -413,8 +457,9 @@ int pipefunction(void){
 		commandStructTable.path[i]=false;
 	}
 	numPipes=0;
+	if (background==false){
+	waitpid(-1, NULL, 0);}
 	background=false;
-	waitpid(-1, NULL, 0);
 
 	return 0;
 
@@ -451,18 +496,21 @@ int parsePath(void)
 }
 
 
-bool hasFile(char* file)
+char* hasFile(char* file)
 {
-	if (file[0]!='.'){
-	char* temp = (char*) malloc(sizeof(file)+sizeof(".")+1);
-	strcpy(temp,".");
-	strcat(temp, file);
-	return (access( temp, F_OK ) == 0 );
-	}
-
-	else{
-		return (access( file, F_OK ) == 0 );
-	}
+	struct stat   buffer;
+	bool found=false;
+	for (int i=0; i<numPaths; i++){
+		char* temp=malloc(sizeof(pathsVar[i])+sizeof(file)+sizeof("/")+1);
+		strcpy(temp,pathsVar[i]);
+		strcat(temp,"/");
+		strcat(temp,file);
+		if (stat (temp, &buffer) == 0){
+			found=true;
+			return temp;
+		}
+	}  
+  return "none";
 
 }
 
@@ -520,6 +568,8 @@ int addToCommand(char* cm)
 	}
 	else if (strcmp(temp2,"|")!=0){
 		if (commandStructTable.size[numPipes]==0){
+			addFileIn=false;
+			addFileOut=false;
 			if (temp2[0]=='/' || temp2[0]=='.'){
 				commandStructTable.path[numPipes]=false;}
 			else {
@@ -529,6 +579,9 @@ int addToCommand(char* cm)
 		char* command;
 		int start=0;
 		for (int i=0; i<strlen(temp2);i++){
+			if (temp2[i]=='*'|| temp2[i]=='?'){
+				return wildcardFunc(temp2);
+			}
 			if (temp2[i]==' '){
 				char* tempCommand=calloc(i-start,sizeof(char));
 				for (int j=start;j<i;j++ ){
@@ -558,7 +611,6 @@ int addToCommand(char* cm)
 	}
 	else {
 		printf("error input %s \n",temp2);
-
 	}
 	commandIndex++;
 	return 1;
@@ -748,4 +800,40 @@ char* envExpansionForUnset(char* cmnd){
 	}
 
 	return cmnd;
+}
+
+
+int wildcardFunc(char* cm){
+    wordexp_t patt;
+    char **words;
+	char getrid;
+	for (int i=0; i<strlen(cm); i++){
+		if (cm[i]=='*'|| cm[i]=='?'){
+			getrid=cm[i];
+		}
+	}
+
+    if (wordexp(cm, &patt, 0) != 0){
+		printf("error in expanding wildcard");
+	}
+    words = patt.we_wordv;
+	if (patt.we_wordc==0){
+		char * t=malloc(sizeof(cm)+1);
+		strcpy(t,cm);
+		char *src, *dst;
+    	for (src = dst = t; *src != '\0'; src++) {
+        	*dst = *src;
+        	if (*dst != getrid) dst++;
+    	}
+    	*dst = '\0';
+		printf("%s \n",t);
+		commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=t;
+		commandStructTable.size[numPipes]++;
+		return 1;
+	}
+    for (int i = 0; i < patt.we_wordc; i++){
+		commandStructTable.command[numPipes][commandStructTable.size[numPipes]]=words[i];
+		commandStructTable.size[numPipes]++;
+	}
+	return 1;
 }

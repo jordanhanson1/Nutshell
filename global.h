@@ -50,6 +50,7 @@ int numPipes;
 int numPaths;
 char *pathsVar[100];
 
+bool wildcard;
 int numCommands;
 int comI[100];
 bool addFileIn;

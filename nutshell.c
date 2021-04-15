@@ -17,6 +17,7 @@ int main()
     addFileIn = false;
     addFileOut = false;
     background = false;
+    wildcard = false;
 
     getcwd(cwd, sizeof(cwd));
 
