@@ -245,6 +245,10 @@ int cmndLong2(void){
 	}
 	}
 	}
+	else{
+		pa=malloc(sizeof(commandStructTable.command[0][0])+1);
+		strcpy(pa,commandStructTable.command[0][0]);
+	}
 
 	int status;
 	int pid=fork();
@@ -324,53 +328,73 @@ int pipefunction(void){
 	for (int i=0; i<numPipes+1;i++){
 		count++;
 
+		char* pa;
+		if (commandStructTable.path[i]==true){
+			for (int j=0; j<numPaths; j++){
+				pa=(char*) malloc(sizeof(pathsVar[j])+sizeof("/")+sizeof(commandStructTable.command[i][0])+1);
+				strcpy(pa,pathsVar[j]);
+				strcat(pa,"/");
+				//printf("%s \n",commandStructTable.command[i][0]);
+				strcat(pa,commandStructTable.command[i][0]);
+				if (hasFile(pa)==false){
+					break;
+				}
+				}
+			}
+		else{
+			pa=malloc(sizeof(commandStructTable.command[i][0])+1);
+			strcpy(pa,commandStructTable.command[i][0]);
+		}
 		if (fork()==0){
 			 if (i != numPipes){
-				dup2(pipeOutside[i][1],1);
+				dup2(pipeOutside[i][1],STDOUT_FILENO);
 			}
 			if (i !=0){
 				dup2(pipeOutside[i-1][0],STDIN_FILENO);
 			}
-			char* pa;
-			for (int k=0; k<numPaths; k++){
-			pa=(char*) malloc(sizeof(pathsVar[k])+sizeof("/")+sizeof(commandStructTable.command[i][0])+1);
-			strcpy(pa,pathsVar[k]);
-			strcat(pa,"/");
-			//find path
-			strcat(pa,commandStructTable.command[i][0]);
-			if (hasFile(pa)==false){
-				break;
-			}
-			}
 			if (commandStructTable.output[i]==true) { 
-        	int fil = creat(commandStructTable.fileOut[i], O_TRUNC);
+        	int fil = creat(commandStructTable.fileOut[0], O_TRUNC);
         	dup2(fil, STDOUT_FILENO);
         	close(fil);
     		}   
 			if (commandStructTable.append[i]==true) { 
-        	int fil = creat(commandStructTable.fileOut[i], O_APPEND);
-        	dup2(fil, STDOUT_FILENO);
-        	close(fil);
+        		int fil = creat(commandStructTable.fileOut[0], O_APPEND);
+        		dup2(fil, STDOUT_FILENO);
+        		close(fil);
     		}   
 			if (commandStructTable.input[i]==true) { 
-        		int fil = creat(commandStructTable.fileIn[i], 0644);
+        		int fil = open(commandStructTable.fileIn[0], O_RDONLY);
         		dup2(fil, STDIN_FILENO);
         		close(fil);
     		}   
-			execv(pa,commandStructTable.command[i]);
+			if (commandStructTable.fileEr[i]==true){
+				int fil = creat(commandStructTable.fileError[0], O_TRUNC);
+				dup2(fil, STDERR_FILENO);
+				close(fil);
 			}
-		else{
+			else if (commandStructTable.errorOut[i]==true){
+				dup2(STDOUT_FILENO, STDERR_FILENO);
+			}
+
+			if (commandStructTable.printalias[i]==true){
+				printAl();
+			}
+			else if (commandStructTable.printenv[i]==true){
+				runPrintEnv();
+			}
+			else{
+				execv(pa,commandStructTable.command[i]);
+			}
+		}
+	else{
 			if (i != numPipes){
 				close(pipeOutside[i][1]);
 			}
 			if (i==numPipes && background==false){
 				waitpid(-1,NULL,0);
 			}
-			}
-
+	}	
 	}
-	
-
 	for (int i=0; i<numPipes+1;i++){
 		for (int j=0; j<commandStructTable.size[i];j++){
 			commandStructTable.command[i][j]=NULL;
@@ -383,6 +407,9 @@ int pipefunction(void){
 		commandStructTable.fileError[i]=false;
 		commandStructTable.errorOut[i]=false;
 		commandStructTable.fileError[i]=NULL;
+		commandStructTable.printenv[i]=false;
+		commandStructTable.printalias[i]=false;
+		commandStructTable.path[i]=false;
 	}
 	numPipes=0;
 	background=false;
@@ -390,9 +417,8 @@ int pipefunction(void){
 
 	return 0;
 
+
 }
-
-
 
 
 
@@ -493,7 +519,7 @@ int addToCommand(char* cm)
 	}
 	else if (strcmp(temp2,"|")!=0){
 		if (commandStructTable.size[numPipes]==0){
-			if (temp2[0]=='.'|| temp2[0]=='/'){
+			if (temp2[0]=='/' || temp2[0]=='.'){
 				commandStructTable.path[numPipes]=false;}
 			else {
 				commandStructTable.path[numPipes]=true;
