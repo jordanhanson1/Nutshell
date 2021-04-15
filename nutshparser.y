@@ -176,7 +176,7 @@ int runUnsetEnv(char *var) {
 		else if (strcmp(varTable.var[2], variable) == 0)
 			printf("cannot unset this variable\n");
 		else if (strcmp(varTable.var[3], variable) == 0)
-			strcpy(varTable.word[3], "");
+			printf("cannot unset this variable\n");
 		else {
 			strcpy(varTable.var[currIndex], "");
 			strcpy(varTable.word[currIndex], "");
