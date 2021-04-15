@@ -232,7 +232,7 @@ int cmndLong2(void){
 
 
 	if (numPipes==0){
-
+	if (commandStructTable.printenv[0]==false && commandStructTable.printalias[0]==false){
 	if (commandStructTable.path[0]==true){
 	for (int i=0; i<numPaths; i++){
 	pa=(char*) malloc(sizeof(pathsVar[i])+sizeof("/")+sizeof(commandStructTable.command[0][0])+1);
@@ -248,7 +248,7 @@ int cmndLong2(void){
 	else{
 		pa=malloc(sizeof(commandStructTable.command[0][0])+1);
 		strcpy(pa,commandStructTable.command[0][0]);
-	}
+	}}
 
 	int status;
 	int pid=fork();
@@ -329,6 +329,7 @@ int pipefunction(void){
 		count++;
 
 		char* pa;
+		if (commandStructTable.printenv[i]==false && commandStructTable.printalias[i]==false){
 		if (commandStructTable.path[i]==true){
 			for (int j=0; j<numPaths; j++){
 				pa=(char*) malloc(sizeof(pathsVar[j])+sizeof("/")+sizeof(commandStructTable.command[i][0])+1);
@@ -344,7 +345,7 @@ int pipefunction(void){
 		else{
 			pa=malloc(sizeof(commandStructTable.command[i][0])+1);
 			strcpy(pa,commandStructTable.command[i][0]);
-		}
+		}}
 		if (fork()==0){
 			 if (i != numPipes){
 				dup2(pipeOutside[i][1],STDOUT_FILENO);
