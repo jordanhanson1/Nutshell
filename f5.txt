@@ -1,0 +1,5 @@
+PWD = /mnt/c/users/matt hanson/desktop/nutshell
+HOME = /mnt/c/users/matt hanson/desktop/nutshell
+PROMPT = nutshell
+PATH = /bin:.
+[nutshell]>> 
