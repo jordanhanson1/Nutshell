@@ -6,13 +6,7 @@ The Nutshell is a command interpretor which uses Lex and Yacc (Flex and Bison) t
 
 
 
-## Features Not Implemented
 
-- Tilde Expansion
-- File Name Completion
-- Append in I/O has some issues, sometimes it deletes everything in file
-- Alias loop detection not complete
-- IO with built in commands acts weird, printalias does not go into file
 
 ## Features Implemented
 
